@@ -9,6 +9,24 @@ import CustomTechniques from './components/CustomTechniques';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { THEMES, getThemeById, applyTheme } from './themes/themes';
 import { exportToPDF, exportToCSV } from './utils/exportData';
+import Onboarding from './components/Onboarding';
+import EmptyState from './components/EmptyState';
+import BreakSuggestions from './components/BreakSuggestions';
+import StreakProtection from './components/StreakProtection';
+import HealthReminders from './components/HealthReminders';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
+import FocusMode from './components/FocusMode';
+import TaskCategories from './components/TaskCategories';
+import SessionNotes from './components/SessionNotes';
+import WelcomeBack from './components/WelcomeBack';
+import Goals from './components/Goals';
+import SessionHistory from './components/SessionHistory';
+import QuickActions from './components/QuickActions';
+import TimelineView from './components/TimelineView';
+import BetterNotifications from './components/BetterNotifications';
+import DataImport from './components/DataImport';
+import DashboardWidgets from './components/DashboardWidgets';
+import Accessibility from './components/Accessibility';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -19,6 +37,8 @@ interface Task {
   estimatedPomodoros: number;
   completedPomodoros: number;
   done: boolean;
+  project?: string;
+  category?: string;
 }
 
 interface Session {
@@ -28,6 +48,8 @@ interface Session {
   duration: number;
   task: string;
   interruptions: number;
+  notes?: string;
+  tags?: string[];
 }
 
 interface DailyStats {
@@ -182,10 +204,37 @@ export default function App() {
   });
 
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Widgets state
+  interface Widget {
+    id: string;
+    type: 'stats' | 'streak' | 'goals' | 'recent' | 'chart';
+    title: string;
+    size: 'small' | 'medium' | 'large';
+    visible: boolean;
+  }
   
+  const [widgets, setWidgets] = useState<Widget[]>([
+    { id: 'stats', type: 'stats', title: 'Statistics', size: 'medium', visible: true },
+    { id: 'streak', type: 'streak', title: 'Streak', size: 'small', visible: true },
+    { id: 'goals', type: 'goals', title: 'Goals', size: 'medium', visible: true },
+    { id: 'recent', type: 'recent', title: 'Recent', size: 'medium', visible: true },
+  ]);
+
+  // Accessibility state
+  const [accessibilitySettings, setAccessibilitySettings] = useState({
+    highContrast: false,
+    reducedMotion: false,
+    largeText: false,
+    screenReader: false,
+    keyboardNav: true,
+  });
+
   const handleUpgrade = () => {
-    setIsPremium(true);
-    localStorage.setItem('pomodoroPremium', 'true');
+    setIsPremium(true);    localStorage.setItem('pomodoroPremium', 'true');
     setShowPremiumModal(false);
   };
 
@@ -206,7 +255,47 @@ export default function App() {
     setCurrentThemeId(themeId);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques'>('timer');
+  // User name for personalization
+  const [userName, setUserName] = useState(() => {
+    return localStorage.getItem('pomodoroUserName') || '';
+  });
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('pomodoroOnboardingComplete');
+  });
+
+  // Keyboard shortcuts modal
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Focus mode
+  const [focusModeActive, setFocusModeActive] = useState(false);
+
+  // Streak freezes
+  const [streakFreezes, setStreakFreezes] = useState(() => {
+    const saved = localStorage.getItem('pomodoroStreakFreezes');
+    return saved ? parseInt(saved) : 1;
+  });
+
+  const handleCompleteOnboarding = (name: string) => {
+    setUserName(name);
+    localStorage.setItem('pomodoroUserName', name);
+    localStorage.setItem('pomodoroOnboardingComplete', 'true');
+    setShowOnboarding(false);
+  };
+
+  const handleUseStreakFreeze = () => {
+    if (streakFreezes > 0) {
+      setStreakFreezes(streakFreezes - 1);
+      localStorage.setItem('pomodoroStreakFreezes', (streakFreezes - 1).toString());
+    }
+  };
+
+  const handleBuyStreakFreeze = () => {
+    setShowPremiumModal(true);
+  };
+
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history' | 'timeline' | 'notifications' | 'import' | 'dashboard' | 'accessibility'>('timer');
   const currentTechnique = TECHNIQUES[state.technique];
   
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
@@ -362,6 +451,21 @@ export default function App() {
     onToggleTheme: toggleTheme,
     isRunning: state.isRunning,
   });
+
+  // Show keyboard shortcuts modal on "?"
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   const selectMode = (mode: Mode) => {
     setState(prev => ({
@@ -574,6 +678,17 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Welcome Back Modal */}
+      {userName && !showOnboarding && (
+        <WelcomeBack
+          userName={userName}
+          currentStreak={state.currentStreak}
+          todaySessions={state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.sessions || 0}
+          todayFocusMinutes={state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.focusMinutes || 0}
+          lastSessionDate={state.sessions.length > 0 ? state.sessions[state.sessions.length - 1].date : undefined}
+        />
+      )}
+
       <header className="brand">
         <div className="brand-title">
           <div className="tomato-logo" aria-label="Pomodoro tomato logo">
@@ -942,6 +1057,149 @@ export default function App() {
             </svg>
             Custom {!isPremium && <span className="pro-badge-small">PRO</span>}
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'break-activities' ? 'active' : ''}`}
+            onClick={() => setActiveTab('break-activities')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+              <line x1="6" y1="1" x2="6" y2="4" />
+              <line x1="10" y1="1" x2="10" y2="4" />
+              <line x1="14" y1="1" x2="14" y2="4" />
+            </svg>
+            Breaks
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'health' ? 'active' : ''}`}
+            onClick={() => setActiveTab('health')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            Health
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'focus-mode' ? 'active' : ''}`}
+            onClick={() => setActiveTab('focus-mode')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            Focus
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'streak' ? 'active' : ''}`}
+            onClick={() => setActiveTab('streak')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+            </svg>
+            Streak
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'categories' ? 'active' : ''}`}
+            onClick={() => setActiveTab('categories')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Categories
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'notes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notes')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            Notes
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'goals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('goals')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            Goals
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            History
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`}
+            onClick={() => setActiveTab('timeline')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="20" x2="12" y2="10" />
+              <line x1="18" y1="20" x2="18" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="16" />
+            </svg>
+            Timeline
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            Alerts
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'import' ? 'active' : ''}`}
+            onClick={() => setActiveTab('import')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Import
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Dashboard
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'accessibility' ? 'active' : ''}`}
+            onClick={() => setActiveTab('accessibility')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="10" r="3" />
+              <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+            </svg>
+            Access
+          </button>
         </div>
 
         {/* Timer view (default) */}
@@ -1269,7 +1527,169 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* Break Activities view */}
+        {activeTab === 'break-activities' && (
+          <div className="tab-content">
+            <BreakSuggestions />
+          </div>
+        )}
+
+        {/* Health Reminders view */}
+        {activeTab === 'health' && (
+          <div className="tab-content">
+            <HealthReminders />
+          </div>
+        )}
+
+        {/* Focus Mode view */}
+        {activeTab === 'focus-mode' && (
+          <div className="tab-content">
+            <FocusMode
+              isActive={focusModeActive}
+              onToggle={() => setFocusModeActive(!focusModeActive)}
+              duration={currentTechnique.work / 60}
+            />
+          </div>
+        )}
+
+        {/* Streak Protection view */}
+        {activeTab === 'streak' && (
+          <div className="tab-content">
+            <StreakProtection
+              currentStreak={state.currentStreak}
+              longestStreak={state.longestStreak}
+              streakFreezes={streakFreezes}
+              onUseFreeze={handleUseStreakFreeze}
+              onBuyFreeze={handleBuyStreakFreeze}
+            />
+          </div>
+        )}
+
+        {/* Task Categories view */}
+        {activeTab === 'categories' && (
+          <div className="tab-content">
+            <TaskCategories
+              tasks={state.tasks}
+              onUpdateTask={(taskId, updates) => {
+                setState(prev => ({
+                  ...prev,
+                  tasks: prev.tasks.map(t => 
+                    t.id === taskId ? { ...t, ...updates } : t
+                  ),
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {/* Session Notes view */}
+        {activeTab === 'notes' && (
+          <div className="tab-content">
+            <SessionNotes
+              sessions={state.sessions}
+              onUpdateSession={(sessionId, updates) => {
+                setState(prev => ({
+                  ...prev,
+                  sessions: prev.sessions.map(s => 
+                    s.id === sessionId ? { ...s, ...updates } : s
+                  ),
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {/* Goals view */}
+        {activeTab === 'goals' && (
+          <div className="tab-content">
+            <Goals
+              currentStreak={state.currentStreak}
+              totalSessions={state.sessions.length}
+              totalFocusMinutes={state.sessions.reduce((sum, s) => sum + s.duration / 60, 0)}
+            />
+          </div>
+        )}
+
+        {/* Session History view */}
+        {activeTab === 'history' && (
+          <div className="tab-content">
+            <SessionHistory sessions={state.sessions} />
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="tab-content">
+            <TimelineView sessions={state.sessions} />
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="tab-content">
+            <BetterNotifications
+              notifications={notifications}
+              onDismiss={(id) => setNotifications(notifications.filter(n => n.id !== id))}
+              onSnooze={(id, minutes) => {
+                setNotifications(notifications.map(n => 
+                  n.id === id ? { ...n, snoozed: true, snoozeUntil: Date.now() + minutes * 60000 } : n
+                ));
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'import' && (
+          <div className="tab-content">
+            <DataImport
+              onImport={(importedSessions) => {
+                setState(prev => ({
+                  ...prev,
+                  sessions: [...prev.sessions, ...importedSessions],
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <div className="tab-content">
+            <DashboardWidgets
+              widgets={widgets}
+              onUpdateWidgets={(newWidgets) => setWidgets(newWidgets)}
+              stats={{
+                sessions: state.sessions.length,
+                focusMinutes: Math.round(state.sessions.reduce((sum, s) => sum + s.duration, 0) / 60),
+                streak: state.currentStreak,
+                todaySessions: state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.sessions || 0,
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'accessibility' && (
+          <div className="tab-content">
+            <Accessibility
+              settings={accessibilitySettings}
+              onUpdateSettings={setAccessibilitySettings}
+            />
+          </div>
+        )}
       </section>
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding
+          onComplete={() => handleCompleteOnboarding(userName)}
+          userName={userName}
+          onUserNameChange={setUserName}
+        />
+      )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcuts
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
 
       {/* Premium Modal */}
       <PremiumModal
