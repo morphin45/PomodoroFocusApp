@@ -43,8 +43,63 @@ body {
   margin-bottom: 18px;
 }
 
-.brand-icon {
-  font-size: 38px;
+.tomato-logo {
+  width: 48px;
+  height: 48px;
+  animation: tomatoFloat 3s ease-in-out infinite;
+}
+
+.tomato-logo svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tomato-body {
+  fill: #ef5350;
+  stroke: #c93636;
+  stroke-width: 3;
+}
+
+.tomato-leaf {
+  fill: #55a85c;
+  stroke: #37823e;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.tomato-highlight {
+  fill: #ff9890;
+  opacity: 0.7;
+}
+
+.tomato-line {
+  fill: none;
+  stroke: #c93636;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.65;
+}
+
+@keyframes tomatoFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+
+.timer-tomato {
+  width: 45px;
+  height: 45px;
+  margin: 0 auto 3px;
+  opacity: 0.95;
+}
+
+.timer-tomato svg {
+  width: 100%;
+  height: 100%;
 }
 
 .brand h1 {
@@ -117,6 +172,9 @@ body {
 
 .timer-content {
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 

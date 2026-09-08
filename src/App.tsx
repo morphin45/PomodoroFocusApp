@@ -205,7 +205,43 @@ export default function App() {
   return (
     <div className="app">
       <div className="brand">
-        <span className="brand-icon">🍅</span>
+        <div className="tomato-logo" aria-label="Pomodoro tomato logo">
+          <svg viewBox="0 0 120 120" role="img">
+            <path
+              className="tomato-leaf"
+              d="M60 31
+                 C48 17 29 19 22 30
+                 C35 29 43 35 49 43
+                 C37 37 24 41 20 52
+                 C35 48 47 54 55 64
+                 C58 67 62 67 65 64
+                 C73 54 85 48 100 52
+                 C96 41 83 37 71 43
+                 C77 35 85 29 98 30
+                 C91 19 72 17 60 31Z"
+            />
+            <path
+              className="tomato-body"
+              d="M60 38
+                 C35 36 17 51 17 75
+                 C17 99 36 111 60 111
+                 C84 111 103 99 103 75
+                 C103 51 85 36 60 38Z"
+            />
+            <path
+              className="tomato-highlight"
+              d="M37 58
+                 C31 65 30 76 33 82
+                 C35 86 40 85 41 80
+                 C40 70 43 64 47 59
+                 C50 55 42 53 37 58Z"
+            />
+            <path
+              className="tomato-line"
+              d="M60 45 C57 61 57 88 60 103"
+            />
+          </svg>
+        </div>
         <h1>Pomodoro Focus</h1>
       </div>
 
@@ -241,6 +277,39 @@ export default function App() {
           }}
         >
           <div className="timer-content">
+            <div className="timer-tomato">
+              <svg viewBox="0 0 120 120">
+                <path
+                  className="tomato-leaf"
+                  d="M60 31
+                     C48 17 29 19 22 30
+                     C35 29 43 35 49 43
+                     C37 37 24 41 20 52
+                     C35 48 47 54 55 64
+                     C58 67 62 67 65 64
+                     C73 54 85 48 100 52
+                     C96 41 83 37 71 43
+                     C77 35 85 29 98 30
+                     C91 19 72 17 60 31Z"
+                />
+                <path
+                  className="tomato-body"
+                  d="M60 38
+                     C35 36 17 51 17 75
+                     C17 99 36 111 60 111
+                     C84 111 103 99 103 75
+                     C103 51 85 36 60 38Z"
+                />
+                <path
+                  className="tomato-highlight"
+                  d="M37 58
+                     C31 65 30 76 33 82
+                     C35 86 40 85 41 80
+                     C40 70 43 64 47 59
+                     C50 55 42 53 37 58Z"
+                />
+              </svg>
+            </div>
             <div className="phase">{LABELS[state.mode]}</div>
             <div className="timer">{formatTime(state.timeLeft)}</div>
             <div className="message">{getMessage()}</div>
