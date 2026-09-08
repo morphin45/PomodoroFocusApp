@@ -1,413 +1,719 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { usePomodoro, getRandomBreakActivity } from './hooks/usePomodoro';
 import PomodoroScene from './components/PomodoroScene';
 
-type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
+function App() {
+  const {
+    mode,
+    timeLeft,
+    totalTime,
+    isRunning,
+    sessionsCompleted,
+    stats,
+    settings,
+    tasks,
+    interruptions,
+    dailyPlan,
+    breakActivity,
+    todayProgress,
+    goalReached,
+    todayHistory,
+    start,
+    pause,
+    reset,
+    skip,
+    updateSettings,
+    switchMode,
+    addTask,
+    updateTask,
+    deleteTask,
+    reorderTasks,
+    logInterruption,
+    clearInterruptions,
+    updateDailyPlan,
+    resetDailyPlan,
+  } = usePomodoro();
 
-interface Settings {
-  focus: number;
-  shortBreak: number;
-  longBreak: number;
-  longBreakInterval: number;
-}
-
-interface SessionRecord {
-  date: string;
-  duration: number;
-  completedAt: string;
-}
-
-interface Stats {
-  sessionsCompleted: number;
-  totalFocusMinutes: number;
-  sessions: SessionRecord[];
-}
-
-const DEFAULT_SETTINGS: Settings = {
-  focus: 25,
-  shortBreak: 5,
-  longBreak: 15,
-  longBreakInterval: 4,
-};
-
-function getToday(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function loadSettings(): Settings {
-  try {
-    const saved = localStorage.getItem('pomodoro-settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-function loadStats(): Stats {
-  try {
-    const saved = localStorage.getItem('pomodoro-stats');
-    if (saved) {
-      const stats = JSON.parse(saved);
-      const today = getToday();
-      const todaySessions = stats.sessions?.filter((s: SessionRecord) => s.date === today) || [];
-      return {
-        sessionsCompleted: todaySessions.length,
-        totalFocusMinutes: todaySessions.reduce((sum: number, s: SessionRecord) => sum + s.duration, 0),
-        sessions: stats.sessions || [],
-      };
-    }
-  } catch { /* ignore */ }
-  return { sessionsCompleted: 0, totalFocusMinutes: 0, sessions: [] };
-}
-
-function playNotificationSound() {
-  try {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, i) => {
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.frequency.value = freq;
-      oscillator.type = 'sine';
-      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
-      oscillator.start(audioCtx.currentTime + i * 0.15);
-      oscillator.stop(audioCtx.currentTime + i * 0.15 + 0.3);
-    });
-  } catch { /* ignore */ }
-}
-
-export default function App() {
-  const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [mode, setMode] = useState<TimerMode>('focus');
-  const [timeLeft, setTimeLeft] = useState(settings.focus * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [stats, setStats] = useState<Stats>(loadStats);
   const [showSettings, setShowSettings] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [showTasks, setShowTasks] = useState(false);
+  const [showInterruptions, setShowInterruptions] = useState(false);
+  const [showDailyPlan, setShowDailyPlan] = useState(false);
+  const [showReflection, setShowReflection] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskEstimate, setNewTaskEstimate] = useState(1);
+  const [interruptionNote, setInterruptionNote] = useState('');
+  const [interruptionType, setInterruptionType] = useState<'internal' | 'external'>('internal');
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats'>('timer');
 
-  const intervalRef = useRef<number | null>(null);
-  const totalTime = settings[mode] * 60;
-
-  // Save settings
+  // Update page title with timer
   useEffect(() => {
-    localStorage.setItem('pomodoro-settings', JSON.stringify(settings));
-  }, [settings]);
-
-  // Timer logic
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = window.setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isRunning) {
-      setIsRunning(false);
-      playNotificationSound();
-
-      if (mode === 'focus') {
-        const newStats = {
-          ...stats,
-          sessionsCompleted: stats.sessionsCompleted + 1,
-          totalFocusMinutes: stats.totalFocusMinutes + settings.focus,
-          sessions: [...stats.sessions, {
-            date: getToday(),
-            duration: settings.focus,
-            completedAt: new Date().toISOString(),
-          }],
-        };
-        setStats(newStats);
-        localStorage.setItem('pomodoro-stats', JSON.stringify(newStats));
-
-        // Auto switch to break
-        const nextMode = (stats.sessionsCompleted + 1) % settings.longBreakInterval === 0
-          ? 'longBreak'
-          : 'shortBreak';
-        setMode(nextMode);
-        setTimeLeft(settings[nextMode] * 60);
-      } else {
-        setMode('focus');
-        setTimeLeft(settings.focus * 60);
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isRunning, timeLeft, mode]);
-
-  // Update document title
-  useEffect(() => {
-    const mins = Math.floor(timeLeft / 60);
-    const secs = timeLeft % 60;
-    const modeLabel = mode === 'focus' ? '🍅 Focus' : mode === 'shortBreak' ? '☕ Short Break' : '🌴 Long Break';
-    document.title = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} - ${modeLabel}`;
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const modeLabel = mode === 'focus' ? '🍅' : mode === 'shortBreak' ? '☕' : '🌿';
+    document.title = `${timeStr} ${modeLabel} Pomodoro Focus`;
   }, [timeLeft, mode]);
 
-  const handleStart = useCallback(() => setIsRunning(true), []);
-  const handlePause = useCallback(() => setIsRunning(false), []);
-  const handleReset = useCallback(() => {
-    setIsRunning(false);
-    setTimeLeft(settings[mode] * 60);
-  }, [mode, settings]);
-
-  const handleModeChange = useCallback((newMode: TimerMode) => {
-    setIsRunning(false);
-    setMode(newMode);
-    setTimeLeft(settings[newMode] * 60);
-  }, [settings]);
-
-  const handleSettingChange = useCallback((key: keyof Settings, value: number) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    if (key === mode) {
-      setTimeLeft(value * 60);
+  const handleAddTask = () => {
+    if (newTaskTitle.trim()) {
+      addTask(newTaskTitle, newTaskEstimate);
+      setNewTaskTitle('');
+      setNewTaskEstimate(1);
     }
-  }, [mode]);
-
-  const modeColors = {
-    focus: { bg: 'from-red-950 via-gray-950 to-gray-950', text: 'text-red-400', border: 'border-red-500/30', btn: 'bg-red-600 hover:bg-red-500' },
-    shortBreak: { bg: 'from-green-950 via-gray-950 to-gray-950', text: 'text-green-400', border: 'border-green-500/30', btn: 'bg-green-600 hover:bg-green-500' },
-    longBreak: { bg: 'from-blue-950 via-gray-950 to-gray-950', text: 'text-blue-400', border: 'border-blue-500/30', btn: 'bg-blue-600 hover:bg-blue-500' },
   };
 
-  const currentColors = modeColors[mode];
+  const handleLogInterruption = () => {
+    if (interruptionNote.trim()) {
+      logInterruption(interruptionType, interruptionNote);
+      setInterruptionNote('');
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const modeColors = {
+    focus: { bg: 'from-red-950/40 to-orange-950/40', accent: 'text-red-400', border: 'border-red-500/30', btn: 'bg-red-600 hover:bg-red-700' },
+    shortBreak: { bg: 'from-green-950/40 to-emerald-950/40', accent: 'text-green-400', border: 'border-green-500/30', btn: 'bg-green-600 hover:bg-green-700' },
+    longBreak: { bg: 'from-blue-950/40 to-indigo-950/40', accent: 'text-blue-400', border: 'border-blue-500/30', btn: 'bg-blue-600 hover:bg-blue-700' },
+  };
+  const colors = modeColors[mode];
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${currentColors.bg} text-white transition-all duration-1000 flex flex-col`}>
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-4">
-        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-          <span className="text-2xl">🍅</span>
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-orange-400">Pomodoro</span>
-        </h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowStats(!showStats)}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-            title="Statistics"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-            title="Settings"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      {/* Mode Tabs */}
-      <div className="flex justify-center px-4 pb-2">
-        <div className="flex bg-white/5 backdrop-blur-sm rounded-xl p-1 border border-white/10">
-          {([
-            { key: 'focus' as TimerMode, label: 'Focus', icon: '🎯' },
-            { key: 'shortBreak' as TimerMode, label: 'Short Break', icon: '☕' },
-            { key: 'longBreak' as TimerMode, label: 'Long Break', icon: '🌴' },
-          ]).map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => handleModeChange(key)}
-              className={`px-3 sm:px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                mode === key
-                  ? 'bg-white/15 text-white shadow-lg'
-                  : 'text-white/50 hover:text-white/80'
-              }`}
-            >
-              <span className="mr-1">{icon}</span>
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 3D Scene */}
-      <div className="flex-1 relative min-h-[350px] sm:min-h-[400px]">
+    <div className={`min-h-screen bg-gradient-to-br ${colors.bg} from-gray-950 to-gray-900 text-white overflow-hidden relative`}>
+      {/* 3D Scene Background */}
+      <div className="absolute inset-0 z-0">
         <PomodoroScene
           mode={mode}
           timeLeft={timeLeft}
           totalTime={totalTime}
           isRunning={isRunning}
-          sessionsCompleted={stats.sessionsCompleted}
+          sessionsCompleted={sessionsCompleted}
           longBreakInterval={settings.longBreakInterval}
+          dailyProgress={todayProgress}
+          interruptions={interruptions.length}
         />
-        {/* Drag hint */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/30 text-xs flex items-center gap-1 pointer-events-none">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-          </svg>
-          Drag to rotate • Scroll to zoom
-        </div>
       </div>
 
-      {/* Controls */}
-      <div className="px-4 pb-4 sm:pb-6">
-        <div className="flex justify-center gap-3 sm:gap-4 mb-4">
-          {!isRunning ? (
-            <button
-              onClick={handleStart}
-              className={`${currentColors.btn} text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95`}
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-                Start
-              </span>
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="bg-amber-600 hover:bg-amber-500 text-white px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95"
-            >
-              <span className="flex items-center gap-2">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                </svg>
-                Pause
-              </span>
-            </button>
+      {/* UI Overlay */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Header */}
+        <header className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🍅</span>
+            <h1 className="text-lg font-bold tracking-tight">Pomodoro Focus</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {stats.currentStreak > 0 && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-xs">
+                <span>🔥</span>
+                <span className="text-orange-300">{stats.currentStreak} day streak</span>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 pb-4">
+          {/* Timer Display */}
+          <div className="text-center mb-4">
+            <div className={`text-6xl md:text-7xl font-mono font-bold ${colors.accent} drop-shadow-lg`}>
+              {formatTime(timeLeft)}
+            </div>
+            <div className="text-sm text-gray-400 mt-2 uppercase tracking-wider">
+              {mode === 'focus' ? 'Focus Session' : mode === 'shortBreak' ? 'Short Break' : 'Long Break'}
+            </div>
+          </div>
+
+          {/* Break Activity Suggestion */}
+          {mode !== 'focus' && (
+            <div className="mb-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-center max-w-xs">
+              <p className="text-xs text-gray-400 mb-1">💡 Suggested break activity:</p>
+              <p className="text-sm text-white">{breakActivity}</p>
+            </div>
           )}
-          <button
-            onClick={handleReset}
-            className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-semibold text-lg border border-white/20 transition-all duration-300 transform hover:scale-105 active:scale-95"
-          >
-            <span className="flex items-center gap-2">
+
+          {/* Controls */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={reset}
+              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all"
+              title="Reset"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Reset
-            </span>
-          </button>
-        </div>
+            </button>
 
-        {/* Quick Stats Bar */}
-        <div className="flex justify-center gap-4 sm:gap-8 text-sm">
-          <div className="flex items-center gap-2 text-white/60">
-            <span className="text-lg">🍅</span>
-            <span>{stats.sessionsCompleted} sessions</span>
-          </div>
-          <div className="flex items-center gap-2 text-white/60">
-            <span className="text-lg">⏱️</span>
-            <span>{stats.totalFocusMinutes} min focused</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
-          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-white/10 rounded-lg">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <button
+              onClick={isRunning ? pause : start}
+              className={`w-16 h-16 rounded-full ${colors.btn} flex items-center justify-center transition-all shadow-lg`}
+            >
+              {isRunning ? (
+                <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
                 </svg>
+              ) : (
+                <svg className="w-7 h-7 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+              )}
+            </button>
+
+            <button
+              onClick={skip}
+              className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all"
+              title="Skip"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <polygon points="5,4 15,12 5,20" />
+                <rect x="17" y="4" width="2" height="16" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Mode Selector */}
+          <div className="flex gap-2 mb-4">
+            {(['focus', 'shortBreak', 'longBreak'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  mode === m
+                    ? 'bg-white/20 border border-white/30 text-white'
+                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
+                }`}
+              >
+                {m === 'focus' ? '🍅 Focus' : m === 'shortBreak' ? '☕ Short' : '🌿 Long'}
               </button>
+            ))}
+          </div>
+
+          {/* Daily Progress Bar */}
+          <div className="w-full max-w-xs mb-4">
+            <div className="flex justify-between text-xs text-gray-400 mb-1">
+              <span>Daily Goal: {dailyPlan.completedPomodoros}/{dailyPlan.targetPomodoros} 🍅</span>
+              {goalReached && <span className="text-green-400">✅ Goal reached!</span>}
             </div>
-            <div className="space-y-4">
-              {([
-                { key: 'focus' as keyof Settings, label: 'Focus Duration', min: 1, max: 120, unit: 'min' },
-                { key: 'shortBreak' as keyof Settings, label: 'Short Break', min: 1, max: 30, unit: 'min' },
-                { key: 'longBreak' as keyof Settings, label: 'Long Break', min: 5, max: 60, unit: 'min' },
-                { key: 'longBreakInterval' as keyof Settings, label: 'Sessions until Long Break', min: 2, max: 10, unit: '' },
-              ]).map(({ key, label, min, max, unit }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <label className="text-white/70 text-sm">{label}</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min={min}
-                      max={max}
-                      value={settings[key]}
-                      onChange={(e) => handleSettingChange(key, Number(e.target.value))}
-                      className="w-24 sm:w-32 accent-red-500"
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  goalReached ? 'bg-green-500' : 'bg-gradient-to-r from-red-500 to-orange-500'
+                }`}
+                style={{ width: `${Math.min(todayProgress * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Quick Action Tabs */}
+          <div className="flex gap-1 mb-3 bg-white/5 rounded-xl p-1 backdrop-blur-sm">
+            <button
+              onClick={() => setActiveTab('timer')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'timer' ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              ⏱ Timer
+            </button>
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'tasks' ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              📋 Tasks ({tasks.filter(t => !t.isCompleted).length})
+            </button>
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'stats' ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              📊 Stats
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="w-full max-w-sm">
+            {activeTab === 'timer' && (
+              <div className="space-y-2">
+                {/* Session progress toward long break */}
+                <div className="flex items-center justify-center gap-1.5 py-2">
+                  {Array.from({ length: settings.longBreakInterval }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-3 h-3 rounded-full transition-all ${
+                        i < sessionsCompleted % settings.longBreakInterval
+                          ? 'bg-red-500 shadow-sm shadow-red-500/50'
+                          : 'bg-white/20'
+                      }`}
                     />
-                    <span className="text-white font-mono w-12 text-right">
-                      {settings[key]}{unit}
-                    </span>
+                  ))}
+                  <span className="text-xs text-gray-400 ml-2">
+                    {sessionsCompleted % settings.longBreakInterval}/{settings.longBreakInterval} to long break
+                  </span>
+                </div>
+
+                {/* Quick actions */}
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => setShowDailyPlan(!showDailyPlan)}
+                    className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition-all"
+                  >
+                    📅 Plan Day
+                  </button>
+                  <button
+                    onClick={() => setShowInterruptions(!showInterruptions)}
+                    className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition-all relative"
+                  >
+                    ⚡ Log Interruption
+                    {interruptions.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[10px] flex items-center justify-center">
+                        {interruptions.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition-all"
+                  >
+                    ⚙️ Settings
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'tasks' && (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {/* Add task form */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
+                    placeholder="Add a task..."
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm placeholder-gray-500 focus:outline-none focus:border-white/30"
+                  />
+                  <select
+                    value={newTaskEstimate}
+                    onChange={(e) => setNewTaskEstimate(Number(e.target.value))}
+                    className="px-2 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none"
+                  >
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <option key={n} value={n} className="bg-gray-900">{n}🍅</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAddTask}
+                    className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-sm transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Pomodoro rules reminder */}
+                <div className="text-[10px] text-gray-500 text-center px-2">
+                  💡 Tasks &gt;4🍅 should be broken down • Small tasks can be batched together
+                </div>
+
+                {/* Task list */}
+                {tasks.map((task, index) => (
+                  <div
+                    key={task.id}
+                    className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
+                      task.isCompleted
+                        ? 'bg-green-500/10 border-green-500/20'
+                        : index === tasks.findIndex(t => !t.isCompleted)
+                        ? 'bg-white/10 border-white/20'
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                  >
+                    <button
+                      onClick={() => updateTask(task.id, { isCompleted: !task.isCompleted })}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        task.isCompleted
+                          ? 'bg-green-500 border-green-500'
+                          : 'border-gray-500 hover:border-white'
+                      }`}
+                    >
+                      {task.isCompleted && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm truncate ${task.isCompleted ? 'line-through text-gray-500' : ''}`}>
+                        {task.title}
+                      </p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {Array.from({ length: task.estimatedPomodoros }).map((_, i) => (
+                          <span key={i} className={`text-[10px] ${i < task.completedPomodoros ? 'text-red-400' : 'text-gray-600'}`}>
+                            🍅
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {index > 0 && (
+                        <button
+                          onClick={() => reorderTasks(index, index - 1)}
+                          className="p-1 text-gray-500 hover:text-white"
+                        >
+                          ↑
+                        </button>
+                      )}
+                      {index < tasks.length - 1 && (
+                        <button
+                          onClick={() => reorderTasks(index, index + 1)}
+                          className="p-1 text-gray-500 hover:text-white"
+                        >
+                          ↓
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        className="p-1 text-gray-500 hover:text-red-400"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {tasks.length === 0 && (
+                  <p className="text-center text-gray-500 text-sm py-4">
+                    No tasks yet. Add tasks with pomodoro estimates! 🍅
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'stats' && (
+              <div className="space-y-3">
+                {/* Today's stats */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-red-400">{stats.sessionsCompleted}</div>
+                    <div className="text-[10px] text-gray-400 mt-1">Sessions</div>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-orange-400">{Math.floor(stats.totalFocusTime / 60)}h</div>
+                    <div className="text-[10px] text-gray-400 mt-1">Focus Time</div>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-yellow-400">{stats.interruptions}</div>
+                    <div className="text-[10px] text-gray-400 mt-1">Interruptions</div>
                   </div>
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={() => {
-                setSettings(DEFAULT_SETTINGS);
-                setTimeLeft(DEFAULT_SETTINGS[mode] * 60);
-              }}
-              className="mt-6 w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white/60 transition-all"
-            >
-              Reset to Defaults
-            </button>
+
+                {/* Streak */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">🔥 Current Streak</div>
+                    <div className="text-xs text-gray-400">Longest: {stats.longestStreak} days</div>
+                  </div>
+                  <div className="text-3xl font-bold text-orange-400">{stats.currentStreak}</div>
+                </div>
+
+                {/* History mini chart */}
+                {stats.history.length > 0 && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-2">Last 7 days</div>
+                    <div className="flex items-end gap-1 h-12">
+                      {stats.history.slice(-7).map((day, i) => {
+                        const maxSessions = Math.max(...stats.history.slice(-7).map(d => d.sessions), 1);
+                        const height = (day.sessions / maxSessions) * 100;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div
+                              className="w-full rounded-t bg-gradient-to-t from-red-600 to-orange-500"
+                              style={{ height: `${Math.max(height, 5)}%` }}
+                            />
+                            <span className="text-[8px] text-gray-500">
+                              {new Date(day.date).toLocaleDateString('en', { weekday: 'short' }).slice(0, 2)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reflection prompt */}
+                <button
+                  onClick={() => setShowReflection(!showReflection)}
+                  className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs transition-all"
+                >
+                  📝 End of Day Reflection
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Stats Panel */}
-      {showStats && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowStats(false)}>
-          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Today's Statistics</h2>
-              <button onClick={() => setShowStats(false)} className="p-1 hover:bg-white/10 rounded-lg">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+        {/* Modals/Panels */}
+        {showSettings && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowSettings(false)}>
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-4">⚙️ Settings</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Focus Duration (min)</label>
+                  <input
+                    type="number"
+                    value={settings.focusDuration}
+                    onChange={(e) => updateSettings({ focusDuration: Math.max(1, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-white/30"
+                    min={1}
+                    max={120}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Short Break (min)</label>
+                  <input
+                    type="number"
+                    value={settings.shortBreakDuration}
+                    onChange={(e) => updateSettings({ shortBreakDuration: Math.max(1, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-white/30"
+                    min={1}
+                    max={30}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Long Break (min)</label>
+                  <input
+                    type="number"
+                    value={settings.longBreakDuration}
+                    onChange={(e) => updateSettings({ longBreakDuration: Math.max(1, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-white/30"
+                    min={1}
+                    max={60}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Long Break After (sessions)</label>
+                  <input
+                    type="number"
+                    value={settings.longBreakInterval}
+                    onChange={(e) => updateSettings({ longBreakInterval: Math.max(2, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-white/30"
+                    min={2}
+                    max={10}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">Daily Goal (pomodoros)</label>
+                  <input
+                    type="number"
+                    value={settings.dailyGoal}
+                    onChange={(e) => updateSettings({ dailyGoal: Math.max(1, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-white/30"
+                    min={1}
+                    max={20}
+                  />
+                </div>
+                <div className="text-[10px] text-gray-500 bg-white/5 rounded-lg p-2">
+                  💡 Tip: Most people find 25-50 min focus with 5-15 min breaks optimal. Experiment to find your sweet spot!
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="w-full mt-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+              >
+                Done
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-                <div className="text-3xl font-bold text-red-400">{stats.sessionsCompleted}</div>
-                <div className="text-xs text-white/50 mt-1">Sessions</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-                <div className="text-3xl font-bold text-orange-400">{stats.totalFocusMinutes}</div>
-                <div className="text-xs text-white/50 mt-1">Minutes</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-                <div className="text-3xl font-bold text-yellow-400">{Math.round(stats.totalFocusMinutes / 60 * 10) / 10}</div>
-                <div className="text-xs text-white/50 mt-1">Hours</div>
-              </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-                <div className="text-3xl font-bold text-green-400">{settings.longBreakInterval - (stats.sessionsCompleted % settings.longBreakInterval)}</div>
-                <div className="text-xs text-white/50 mt-1">Until Long Break</div>
-              </div>
-            </div>
-
-            {/* Progress to long break */}
-            <div className="mb-4">
-              <div className="flex justify-between text-sm text-white/50 mb-2">
-                <span>Progress to Long Break</span>
-                <span>{stats.sessionsCompleted % settings.longBreakInterval}/{settings.longBreakInterval}</span>
-              </div>
-              <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all duration-500"
-                  style={{ width: `${((stats.sessionsCompleted % settings.longBreakInterval) / settings.longBreakInterval) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                const emptyStats = { sessionsCompleted: 0, totalFocusMinutes: 0, sessions: [] };
-                setStats(emptyStats);
-                localStorage.setItem('pomodoro-stats', JSON.stringify(emptyStats));
-              }}
-              className="mt-2 w-full py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-sm text-red-400 transition-all"
-            >
-              Clear Today's Data
-            </button>
           </div>
-        </div>
-      )}
+        )}
+
+        {showDailyPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowDailyPlan(false)}>
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-4">📅 Daily Plan</h2>
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-xs text-gray-400 mb-2">Today's Target</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={1}
+                      max={16}
+                      value={dailyPlan.targetPomodoros}
+                      onChange={(e) => updateDailyPlan({ targetPomodoros: Number(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-red-400">{dailyPlan.targetPomodoros} 🍅</span>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-xs text-gray-400 mb-2">Overflow Buffer</div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={6}
+                      value={dailyPlan.overflowBuffer}
+                      onChange={(e) => updateDailyPlan({ overflowBuffer: Number(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <span className="text-lg font-bold text-orange-400">+{dailyPlan.overflowBuffer} 🍅</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">Buffer for unexpected tasks or overruns</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Completed</span>
+                    <span className="text-white">{dailyPlan.completedPomodoros} / {dailyPlan.targetPomodoros}</span>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all"
+                      style={{ width: `${(dailyPlan.completedPomodoros / dailyPlan.targetPomodoros) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="text-[10px] text-gray-500 bg-white/5 rounded-lg p-2">
+                  💡 Plan 12-14 pomodoros max for an 8-hour day. Build in 2-4 overflow pomodoros for flexibility.
+                </div>
+                <button
+                  onClick={() => { resetDailyPlan(); setShowDailyPlan(false); }}
+                  className="w-full py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+                >
+                  Reset Day
+                </button>
+              </div>
+              <button
+                onClick={() => setShowDailyPlan(false)}
+                className="w-full mt-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-sm transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showInterruptions && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowInterruptions(false)}>
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-4">⚡ Interruption Tracker</h2>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setInterruptionType('internal')}
+                    className={`flex-1 py-2 rounded-lg text-xs transition-all ${
+                      interruptionType === 'internal'
+                        ? 'bg-purple-500/30 border border-purple-500/50 text-purple-300'
+                        : 'bg-white/5 border border-white/10 text-gray-400'
+                    }`}
+                  >
+                    🧠 Internal (my thoughts)
+                  </button>
+                  <button
+                    onClick={() => setInterruptionType('external')}
+                    className={`flex-1 py-2 rounded-lg text-xs transition-all ${
+                      interruptionType === 'external'
+                        ? 'bg-orange-500/30 border border-orange-500/50 text-orange-300'
+                        : 'bg-white/5 border border-white/10 text-gray-400'
+                    }`}
+                  >
+                    📱 External (others)
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={interruptionNote}
+                  onChange={(e) => setInterruptionNote(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLogInterruption()}
+                  placeholder="What interrupted you?"
+                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm placeholder-gray-500 focus:outline-none focus:border-white/30"
+                />
+                <button
+                  onClick={handleLogInterruption}
+                  className="w-full py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-sm transition-all"
+                >
+                  Log Interruption
+                </button>
+
+                {/* Interruption list */}
+                {interruptions.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto space-y-1 mt-2">
+                    {interruptions.slice().reverse().map((int) => (
+                      <div key={int.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 text-xs">
+                        <span>{int.type === 'internal' ? '🧠' : '📱'}</span>
+                        <span className="flex-1 text-gray-300 truncate">{int.note}</span>
+                        <span className="text-gray-500">
+                          {new Date(int.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="text-[10px] text-gray-500 bg-white/5 rounded-lg p-2">
+                  💡 Track interruptions to identify patterns. Note them and return to later — don't break your pomodoro!
+                </div>
+
+                {interruptions.length > 0 && (
+                  <button
+                    onClick={clearInterruptions}
+                    className="w-full py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-400 transition-all"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setShowInterruptions(false)}
+                className="w-full mt-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showReflection && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowReflection(false)}>
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold mb-4">📝 Daily Reflection</h2>
+              <div className="space-y-3">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-xs text-gray-400 mb-2">Today's Summary</div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>🍅 Sessions: <span className="text-red-400 font-bold">{stats.sessionsCompleted}</span></div>
+                    <div>⏱ Focus: <span className="text-orange-400 font-bold">{Math.floor(stats.totalFocusTime / 60)}h {stats.totalFocusTime % 60}m</span></div>
+                    <div>⚡ Interruptions: <span className="text-yellow-400 font-bold">{stats.interruptions}</span></div>
+                    <div>🔥 Streak: <span className="text-orange-400 font-bold">{stats.currentStreak} days</span></div>
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-xs text-gray-400 mb-2">Tasks Completed</div>
+                  <div className="text-sm">
+                    {tasks.filter(t => t.isCompleted).length} / {tasks.length} tasks done
+                  </div>
+                </div>
+                <div className="text-[10px] text-gray-500 bg-white/5 rounded-lg p-2">
+                  💡 Reflect on what went well and how you can improve tomorrow. Each pomodoro is a fresh start!
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReflection(false)}
+                className="w-full mt-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+export default App;

@@ -12,9 +12,11 @@ interface PomodoroSceneProps {
   isRunning: boolean;
   sessionsCompleted: number;
   longBreakInterval: number;
+  dailyProgress: number;
+  interruptions: number;
 }
 
-function PomodoroDevice({ mode, timeLeft, totalTime, isRunning, sessionsCompleted, longBreakInterval }: PomodoroSceneProps) {
+function PomodoroDevice({ mode, timeLeft, totalTime, isRunning, sessionsCompleted, longBreakInterval, dailyProgress, interruptions }: PomodoroSceneProps) {
   const groupRef = useRef<THREE.Group>(null);
   const dialRef = useRef<THREE.Group>(null);
   const progressRef = useRef<THREE.Mesh>(null);
@@ -222,6 +224,52 @@ function PomodoroDevice({ mode, timeLeft, totalTime, isRunning, sessionsComplete
         intensity={isRunning ? 2 : 0.5}
         distance={5}
       />
+
+      {/* Daily progress orbs - floating around the device */}
+      {Array.from({ length: Math.round(dailyProgress * 8) }).map((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const radius = 2.5;
+        return (
+          <mesh
+            key={`progress-${i}`}
+            position={[
+              Math.cos(angle) * radius,
+              Math.sin(angle * 2) * 0.3 + 0.5,
+              Math.sin(angle) * radius,
+            ]}
+          >
+            <sphereGeometry args={[0.08, 16, 16]} />
+            <meshStandardMaterial
+              color={colors.accent}
+              emissive={colors.accent}
+              emissiveIntensity={1.5}
+            />
+          </mesh>
+        );
+      })}
+
+      {/* Interruption indicators - red warning orbs */}
+      {interruptions > 0 && Array.from({ length: Math.min(interruptions, 5) }).map((_, i) => {
+        const angle = (i / 5) * Math.PI * 2 + Math.PI;
+        const radius = 2.2;
+        return (
+          <mesh
+            key={`interruption-${i}`}
+            position={[
+              Math.cos(angle) * radius,
+              -0.5,
+              Math.sin(angle) * radius,
+            ]}
+          >
+            <octahedronGeometry args={[0.06, 0]} />
+            <meshStandardMaterial
+              color="#ff3333"
+              emissive="#ff0000"
+              emissiveIntensity={2}
+            />
+          </mesh>
+        );
+      })}
 
       {/* Base/stand */}
       <mesh position={[0, -1.6, 0]} receiveShadow>
