@@ -21,6 +21,12 @@ import SessionNotes from './components/SessionNotes';
 import WelcomeBack from './components/WelcomeBack';
 import Goals from './components/Goals';
 import SessionHistory from './components/SessionHistory';
+import QuickActions from './components/QuickActions';
+import TimelineView from './components/TimelineView';
+import BetterNotifications from './components/BetterNotifications';
+import DataImport from './components/DataImport';
+import DashboardWidgets from './components/DashboardWidgets';
+import Accessibility from './components/Accessibility';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -198,10 +204,37 @@ export default function App() {
   });
 
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Widgets state
+  interface Widget {
+    id: string;
+    type: 'stats' | 'streak' | 'goals' | 'recent' | 'chart';
+    title: string;
+    size: 'small' | 'medium' | 'large';
+    visible: boolean;
+  }
   
+  const [widgets, setWidgets] = useState<Widget[]>([
+    { id: 'stats', type: 'stats', title: 'Statistics', size: 'medium', visible: true },
+    { id: 'streak', type: 'streak', title: 'Streak', size: 'small', visible: true },
+    { id: 'goals', type: 'goals', title: 'Goals', size: 'medium', visible: true },
+    { id: 'recent', type: 'recent', title: 'Recent', size: 'medium', visible: true },
+  ]);
+
+  // Accessibility state
+  const [accessibilitySettings, setAccessibilitySettings] = useState({
+    highContrast: false,
+    reducedMotion: false,
+    largeText: false,
+    screenReader: false,
+    keyboardNav: true,
+  });
+
   const handleUpgrade = () => {
-    setIsPremium(true);
-    localStorage.setItem('pomodoroPremium', 'true');
+    setIsPremium(true);    localStorage.setItem('pomodoroPremium', 'true');
     setShowPremiumModal(false);
   };
 
@@ -262,7 +295,7 @@ export default function App() {
     setShowPremiumModal(true);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history'>('timer');
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history' | 'timeline' | 'notifications' | 'import' | 'dashboard' | 'accessibility'>('timer');
   const currentTechnique = TECHNIQUES[state.technique];
   
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
@@ -1112,6 +1145,61 @@ export default function App() {
             </svg>
             History
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'timeline' ? 'active' : ''}`}
+            onClick={() => setActiveTab('timeline')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="20" x2="12" y2="10" />
+              <line x1="18" y1="20" x2="18" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="16" />
+            </svg>
+            Timeline
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notifications')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            Alerts
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'import' ? 'active' : ''}`}
+            onClick={() => setActiveTab('import')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Import
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Dashboard
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'accessibility' ? 'active' : ''}`}
+            onClick={() => setActiveTab('accessibility')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="10" r="3" />
+              <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+            </svg>
+            Access
+          </button>
         </div>
 
         {/* Timer view (default) */}
@@ -1527,6 +1615,63 @@ export default function App() {
         {activeTab === 'history' && (
           <div className="tab-content">
             <SessionHistory sessions={state.sessions} />
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="tab-content">
+            <TimelineView sessions={state.sessions} />
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="tab-content">
+            <BetterNotifications
+              notifications={notifications}
+              onDismiss={(id) => setNotifications(notifications.filter(n => n.id !== id))}
+              onSnooze={(id, minutes) => {
+                setNotifications(notifications.map(n => 
+                  n.id === id ? { ...n, snoozed: true, snoozeUntil: Date.now() + minutes * 60000 } : n
+                ));
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'import' && (
+          <div className="tab-content">
+            <DataImport
+              onImport={(importedSessions) => {
+                setState(prev => ({
+                  ...prev,
+                  sessions: [...prev.sessions, ...importedSessions],
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'dashboard' && (
+          <div className="tab-content">
+            <DashboardWidgets
+              widgets={widgets}
+              onUpdateWidgets={(newWidgets) => setWidgets(newWidgets)}
+              stats={{
+                sessions: state.sessions.length,
+                focusMinutes: Math.round(state.sessions.reduce((sum, s) => sum + s.duration, 0) / 60),
+                streak: state.currentStreak,
+                todaySessions: state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.sessions || 0,
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'accessibility' && (
+          <div className="tab-content">
+            <Accessibility
+              settings={accessibilitySettings}
+              onUpdateSettings={setAccessibilitySettings}
+            />
           </div>
         )}
       </section>
