@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
+type Technique = 'classic' | 'extended' | 'short' | 'deep';
 
 interface State {
   mode: Mode;
@@ -8,12 +9,46 @@ interface State {
   isRunning: boolean;
   completedSessions: number;
   task: string;
+  technique: Technique;
 }
 
-const DURATIONS: Record<Mode, number> = {
-  work: 25 * 60,
-  shortBreak: 5 * 60,
-  longBreak: 15 * 60,
+interface TechniqueConfig {
+  name: string;
+  work: number;
+  shortBreak: number;
+  longBreak: number;
+  description: string;
+}
+
+const TECHNIQUES: Record<Technique, TechniqueConfig> = {
+  classic: {
+    name: 'Classic Pomodoro',
+    work: 25 * 60,
+    shortBreak: 5 * 60,
+    longBreak: 15 * 60,
+    description: 'Work for 25 minutes, then take a 5-minute break. After four focus sessions, take a longer break.',
+  },
+  extended: {
+    name: 'Extended Focus',
+    work: 50 * 60,
+    shortBreak: 10 * 60,
+    longBreak: 30 * 60,
+    description: 'Work for 50 minutes and rest for 10 minutes. This is useful for longer tasks such as studying or coding.',
+  },
+  short: {
+    name: 'Short Focus',
+    work: 15 * 60,
+    shortBreak: 3 * 60,
+    longBreak: 10 * 60,
+    description: 'Work for 15 minutes with a 3-minute break. This is useful when starting difficult or unfamiliar tasks.',
+  },
+  deep: {
+    name: 'Deep Work',
+    work: 90 * 60,
+    shortBreak: 20 * 60,
+    longBreak: 30 * 60,
+    description: 'Work deeply for 90 minutes, then take a 20-minute recovery break.',
+  },
 };
 
 const LABELS: Record<Mode, string> = {
@@ -54,16 +89,23 @@ export default function App() {
     const saved = localStorage.getItem('pomodoroState');
     if (saved) {
       const parsed = JSON.parse(saved);
-      return { ...parsed, isRunning: false };
+      return { ...parsed, isRunning: false, technique: parsed.technique || 'classic' };
     }
     return {
       mode: 'work',
-      timeLeft: DURATIONS.work,
+      timeLeft: TECHNIQUES.classic.work,
       isRunning: false,
       completedSessions: 0,
       task: '',
+      technique: 'classic',
     };
   });
+
+  const currentTechnique = TECHNIQUES[state.technique];
+
+  const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
+    return TECHNIQUES[technique][mode];
+  };
 
   const intervalRef = useRef<number | null>(null);
 
@@ -116,7 +158,7 @@ export default function App() {
             return {
               ...prev,
               mode: newMode,
-              timeLeft: DURATIONS[newMode],
+              timeLeft: getDuration(newMode, prev.technique),
               isRunning: false,
               completedSessions: newCompletedSessions,
             };
@@ -150,7 +192,7 @@ export default function App() {
   const resetTimer = () => {
     setState(prev => ({
       ...prev,
-      timeLeft: DURATIONS[prev.mode],
+      timeLeft: getDuration(prev.mode, prev.technique),
       isRunning: false,
     }));
   };
@@ -168,7 +210,7 @@ export default function App() {
       return {
         ...prev,
         mode: newMode,
-        timeLeft: DURATIONS[newMode],
+        timeLeft: getDuration(newMode, prev.technique),
         isRunning: false,
       };
     });
@@ -178,7 +220,7 @@ export default function App() {
     setState(prev => ({
       ...prev,
       mode,
-      timeLeft: DURATIONS[mode],
+      timeLeft: getDuration(mode, prev.technique),
       isRunning: false,
     }));
   };
@@ -188,7 +230,8 @@ export default function App() {
   };
 
   // Calculate progress
-  const progress = ((DURATIONS[state.mode] - state.timeLeft) / DURATIONS[state.mode]) * 360;
+  const totalDuration = getDuration(state.mode, state.technique);
+  const progress = ((totalDuration - state.timeLeft) / totalDuration) * 360;
   const color = COLORS[state.mode];
 
   // Calculate message
@@ -196,10 +239,20 @@ export default function App() {
     if (state.isRunning) {
       return state.task || 'Stay focused...';
     }
-    if (state.timeLeft === DURATIONS[state.mode]) {
+    if (state.timeLeft === totalDuration) {
       return 'Ready to focus?';
     }
     return 'Timer paused';
+  };
+
+  const changeTechnique = (technique: Technique) => {
+    setState(prev => ({
+      ...prev,
+      technique,
+      mode: 'work',
+      timeLeft: getDuration('work', technique),
+      isRunning: false,
+    }));
   };
 
   return (
@@ -268,6 +321,21 @@ export default function App() {
           >
             Long Break
           </button>
+        </div>
+
+        <div className="technique-box">
+          <label htmlFor="technique">Pomodoro technique</label>
+          <select
+            id="technique"
+            value={state.technique}
+            onChange={e => changeTechnique(e.target.value as Technique)}
+          >
+            <option value="classic">Classic Pomodoro — 25/5</option>
+            <option value="extended">Extended Focus — 50/10</option>
+            <option value="short">Short Focus — 15/3</option>
+            <option value="deep">Deep Work — 90/20</option>
+          </select>
+          <p>{currentTechnique.description}</p>
         </div>
 
         <div
@@ -360,9 +428,25 @@ export default function App() {
             ))}
           </div>
         </div>
+
+        <div className="guide">
+          <h2>How to use Pomodoro</h2>
+          <ol>
+            <li>Choose one task to work on.</li>
+            <li>Start the focus timer.</li>
+            <li>Work without interruptions until the timer ends.</li>
+            <li>Take a short break.</li>
+            <li>Repeat four times, then take a longer break.</li>
+          </ol>
+          <div className="tip">
+            <strong>Tip:</strong> If another task comes to mind, write it down instead of switching tasks.
+          </div>
+        </div>
       </section>
 
-      <div className="footer">Focus for 25 minutes. Rest. Repeat.</div>
+      <div className="footer">
+        Focus for {Math.round(currentTechnique.work / 60)} minutes. Rest. Repeat.
+      </div>
     </div>
   );
 }
