@@ -3267,6 +3267,523 @@ body[data-theme="dark"] .delete-task-btn:hover {
   font-size: 20px;
 }
 
+/* Export Buttons */
+.export-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.export-buttons .export-btn {
+  flex: 1;
+}
+
+/* Ambient Sounds */
+.ambient-sounds {
+  padding: 20px;
+}
+
+.sounds-header {
+  margin-bottom: 24px;
+}
+
+.sounds-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.sounds-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.now-playing {
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.now-playing-icon {
+  font-size: 24px;
+}
+
+.now-playing-info {
+  flex: 1;
+}
+
+.now-playing-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+.stop-sound-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.stop-sound-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.sounds-section {
+  margin-bottom: 24px;
+}
+
+.sounds-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sounds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.sound-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  text-align: center;
+}
+
+.sound-card:hover {
+  border-color: var(--red);
+  transform: translateY(-2px);
+}
+
+.sound-card.active {
+  border-color: var(--red);
+  background: var(--red-light);
+}
+
+.sound-card.premium-locked {
+  opacity: 0.6;
+}
+
+.premium-lock {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+}
+
+.sound-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.sound-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.sound-description {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sound-playing-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.sound-playing-indicator span {
+  width: 3px;
+  height: 12px;
+  background: var(--red);
+  border-radius: 2px;
+  animation: soundWave 0.8s ease-in-out infinite;
+}
+
+.sound-playing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.sound-playing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes soundWave {
+  0%, 100% {
+    height: 12px;
+  }
+  50% {
+    height: 20px;
+  }
+}
+
+.sounds-upgrade {
+  background: var(--red-light);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.sounds-upgrade p {
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+/* Theme Selector */
+.theme-selector {
+  padding: 20px;
+}
+
+.theme-header {
+  margin-bottom: 24px;
+}
+
+.theme-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.theme-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.themes-section {
+  margin-bottom: 24px;
+}
+
+.themes-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.theme-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-card:hover {
+  transform: translateY(-2px);
+}
+
+.theme-card.active {
+  border-width: 3px;
+}
+
+.theme-card.premium-locked {
+  opacity: 0.6;
+}
+
+.theme-lock {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+}
+
+.theme-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.theme-icon {
+  font-size: 24px;
+}
+
+.theme-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.theme-description {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.theme-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: var(--red);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.themes-upgrade {
+  background: var(--red-light);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.themes-upgrade p {
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+/* Custom Techniques */
+.custom-techniques {
+  padding: 20px;
+}
+
+.techniques-header {
+  margin-bottom: 24px;
+}
+
+.techniques-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.techniques-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.techniques-list {
+  margin-bottom: 16px;
+}
+
+.technique-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.technique-info {
+  flex: 1;
+}
+
+.technique-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.technique-details {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.technique-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-btn,
+.delete-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.edit-btn:hover {
+  background: var(--red-light);
+  border-color: var(--red);
+}
+
+.delete-btn:hover {
+  background: #fee;
+  border-color: #f66;
+  color: #c33;
+}
+
+.add-technique-btn {
+  width: 100%;
+  background: var(--card);
+  border: 2px dashed var(--border);
+  padding: 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.add-technique-btn:hover {
+  border-color: var(--red);
+  background: var(--red-light);
+}
+
+.technique-form {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.technique-form h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cancel-btn,
+.save-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.cancel-btn:hover {
+  background: #f5f5f5;
+}
+
+.save-btn {
+  background: var(--red);
+  color: white;
+}
+
+.save-btn:hover {
+  background: var(--red-dark);
+}
+
+.techniques-upgrade {
+  background: var(--red-light);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.techniques-upgrade p {
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
 /* Mobile */
 
 @media (max-width: 420px) {
