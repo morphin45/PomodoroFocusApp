@@ -122,13 +122,42 @@ select {
 }
 
 .icon-button {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
   color: var(--muted);
   cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 2px 8px rgba(124, 70, 48, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.icon-button:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%);
+  color: var(--red);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 12px rgba(124, 70, 48, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.icon-button:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 
+    0 1px 2px rgba(124, 70, 48, 0.1),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.icon-button:focus-visible {
+  outline: 3px solid rgba(240, 82, 82, 0.3);
+  outline-offset: 2px;
 }
 
 /* Main card */
@@ -164,17 +193,33 @@ select {
 
 .technique-box select {
   width: 100%;
-  padding: 11px 13px;
+  padding: 13px 40px 13px 15px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 12px;
   outline: none;
   background: white;
   color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23918484' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+}
+
+.technique-box select:hover {
+  border-color: rgba(240, 82, 82, 0.3);
+  box-shadow: 0 2px 8px rgba(240, 82, 82, 0.08);
 }
 
 .technique-box select:focus {
   border-color: var(--red);
+  box-shadow: 
+    0 0 0 4px rgba(240, 82, 82, 0.1),
+    0 4px 12px rgba(240, 82, 82, 0.12);
 }
 
 .technique-box p {
@@ -188,34 +233,71 @@ select {
 
 .tabs {
   display: flex;
-  gap: 5px;
-  padding: 5px;
+  gap: 6px;
+  padding: 6px;
   margin-bottom: 27px;
-  border-radius: 15px;
-  background: #f9eeeb;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f9eeeb 0%, #f5e8e3 100%);
+  box-shadow: inset 0 2px 4px rgba(124, 70, 48, 0.05);
 }
 
 .tab {
   flex: 1;
-  padding: 11px 4px;
+  padding: 12px 8px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 12px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.tab-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.25s ease;
 }
 
 .tab:hover {
   color: var(--red-dark);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.tab:hover .tab-icon {
+  opacity: 1;
 }
 
 .tab.active {
-  background: var(--red);
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
   color: white;
-  box-shadow: 0 7px 15px rgba(240, 82, 82, 0.28);
+  box-shadow: 
+    0 8px 16px rgba(240, 82, 82, 0.3),
+    0 2px 4px rgba(240, 82, 82, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.tab.active .tab-icon {
+  opacity: 1;
+}
+
+.tab.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 10px 20px rgba(240, 82, 82, 0.35),
+    0 4px 8px rgba(240, 82, 82, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.tab:active {
+  transform: scale(0.97);
 }
 
 /* Timer */
@@ -304,22 +386,34 @@ select {
 
 .task-input {
   width: 100%;
-  padding: 14px 15px;
-  border: 1px solid var(--border);
-  border-radius: 13px;
+  padding: 15px 16px 15px 44px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
   outline: none;
   background: #fff;
   color: var(--text);
-  transition: 0.2s ease;
+  font-size: 14px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23918484' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'%3E%3C/path%3E%3Cpath d='M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 14px center;
+  background-size: 20px;
 }
 
 .task-input::placeholder {
   color: #b5a7a3;
 }
 
+.task-input:hover {
+  border-color: rgba(240, 82, 82, 0.2);
+}
+
 .task-input:focus {
   border-color: var(--red);
-  box-shadow: 0 0 0 4px rgba(240, 82, 82, 0.1);
+  box-shadow: 
+    0 0 0 4px rgba(240, 82, 82, 0.1),
+    0 4px 12px rgba(240, 82, 82, 0.08);
+  background-color: #fffdfc;
 }
 
 /* Controls */
@@ -327,53 +421,126 @@ select {
 .controls {
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr;
-  gap: 9px;
+  gap: 10px;
   margin-top: 15px;
 }
 
 .controls button,
-#skip {
-  min-height: 45px;
+.skip-btn {
+  min-height: 48px;
   border: 0;
-  border-radius: 13px;
-  font-size: 13px;
-  font-weight: 800;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.controls button::before,
+.skip-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.controls button:hover,
+.skip-btn:hover {
+  transform: translateY(-2px);
 }
 
 .controls button:active,
-#skip:active {
-  transform: scale(0.97);
+.skip-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.controls button:focus-visible,
+.skip-btn:focus-visible {
+  outline: 3px solid rgba(240, 82, 82, 0.3);
+  outline-offset: 2px;
 }
 
 .start {
-  background: linear-gradient(135deg, #f45e59, #df4147);
+  background: linear-gradient(135deg, #f45e59 0%, #df4147 100%);
   color: white;
-  box-shadow: 0 8px 16px rgba(225, 65, 65, 0.22);
+  box-shadow: 
+    0 8px 16px rgba(225, 65, 65, 0.25),
+    0 2px 4px rgba(225, 65, 65, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .start:hover {
-  box-shadow: 0 11px 22px rgba(225, 65, 65, 0.3);
+  box-shadow: 
+    0 12px 24px rgba(225, 65, 65, 0.35),
+    0 4px 8px rgba(225, 65, 65, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.secondary,
-#skip {
-  background: #f8efec;
+.start:active {
+  box-shadow: 
+    0 4px 8px rgba(225, 65, 65, 0.2),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.secondary {
+  background: linear-gradient(135deg, #ffffff 0%, #f8efec 100%);
   color: var(--text);
+  box-shadow: 
+    0 2px 8px rgba(124, 70, 48, 0.08),
+    0 1px 2px rgba(124, 70, 48, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(124, 70, 48, 0.08);
 }
 
-.secondary:hover,
-#skip:hover {
-  background: #f1e4df;
+.secondary:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f1e4df 100%);
+  box-shadow: 
+    0 4px 12px rgba(124, 70, 48, 0.12),
+    0 2px 4px rgba(124, 70, 48, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-#skip {
+.secondary:active {
+  background: linear-gradient(135deg, #f8efec 0%, #f1e4df 100%);
+  box-shadow: 
+    0 1px 2px rgba(124, 70, 48, 0.1),
+    inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.skip-btn {
   width: 100%;
-  margin-top: 9px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #ffffff 0%, #faf5f3 100%);
+  color: var(--muted);
+  box-shadow: 
+    0 2px 6px rgba(124, 70, 48, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(124, 70, 48, 0.06);
+}
+
+.skip-btn:hover {
+  background: linear-gradient(135deg, #ffffff 0%, #f5efec 100%);
+  color: var(--text);
+  box-shadow: 
+    0 4px 10px rgba(124, 70, 48, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Button icons */
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 /* Sessions */
@@ -398,23 +565,45 @@ select {
 .session-dots {
   display: flex;
   justify-content: center;
-  gap: 9px;
-  margin-top: 13px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .dot {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border: 3px solid #eadcd7;
   border-radius: 50%;
   background: transparent;
-  transition: 0.25s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.dot:hover {
+  transform: scale(1.15);
+  border-color: rgba(240, 82, 82, 0.4);
 }
 
 .dot.completed {
   border-color: var(--red);
-  background: var(--red);
-  box-shadow: 0 3px 8px rgba(240, 82, 82, 0.3);
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  box-shadow: 
+    0 3px 8px rgba(240, 82, 82, 0.35),
+    0 1px 2px rgba(240, 82, 82, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  animation: dotPulse 0.4s ease-out;
+}
+
+@keyframes dotPulse {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Guide */

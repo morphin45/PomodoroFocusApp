@@ -311,6 +311,11 @@ export default function App() {
             onClick={() => selectMode('work')}
             style={state.mode === 'work' ? { background: color } : {}}
           >
+            <svg className="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
             Focus
           </button>
           <button
@@ -318,6 +323,13 @@ export default function App() {
             onClick={() => selectMode('shortBreak')}
             style={state.mode === 'shortBreak' ? { background: color } : {}}
           >
+            <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+              <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+              <line x1="6" y1="2" x2="6" y2="4" />
+              <line x1="10" y1="2" x2="10" y2="4" />
+              <line x1="14" y1="2" x2="14" y2="4" />
+            </svg>
             Short Break
           </button>
           <button
@@ -325,6 +337,12 @@ export default function App() {
             onClick={() => selectMode('longBreak')}
             style={state.mode === 'longBreak' ? { background: color } : {}}
           >
+            <svg className="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3" />
+              <path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0Z" />
+              <path d="M4 18v2" />
+              <path d="M20 18v2" />
+            </svg>
             Long Break
           </button>
         </div>
@@ -408,14 +426,36 @@ export default function App() {
             onClick={state.isRunning ? pauseTimer : startTimer}
             style={{ background: color }}
           >
-            {state.isRunning ? 'Pause' : 'Start'}
+            {state.isRunning ? (
+              <>
+                <svg className="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+                Pause
+              </>
+            ) : (
+              <>
+                <svg className="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+                Start
+              </>
+            )}
           </button>
           <button className="secondary" onClick={resetTimer}>
+            <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
             Reset
           </button>
         </div>
 
-        <button className="secondary skip" onClick={skipSession}>
+        <button className="skip-btn" onClick={skipSession}>
+          <svg className="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 4l10 8-10 8V4zM19 5v14h-2V5h2z" />
+          </svg>
           Skip Session
         </button>
 
