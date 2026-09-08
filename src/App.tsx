@@ -3,6 +3,30 @@ import { useState, useEffect, useRef } from 'react';
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
 
+interface Task {
+  id: string;
+  name: string;
+  estimatedPomodoros: number;
+  completedPomodoros: number;
+  done: boolean;
+}
+
+interface Session {
+  id: string;
+  date: string;
+  mode: Mode;
+  duration: number;
+  task: string;
+  interruptions: number;
+}
+
+interface DailyStats {
+  date: string;
+  sessions: number;
+  focusMinutes: number;
+  interruptions: number;
+}
+
 interface State {
   mode: Mode;
   timeLeft: number;
@@ -10,6 +34,13 @@ interface State {
   completedSessions: number;
   task: string;
   technique: Technique;
+  tasks: Task[];
+  sessions: Session[];
+  dailyStats: DailyStats[];
+  dailyGoal: number;
+  currentStreak: number;
+  longestStreak: number;
+  interruptions: number;
 }
 
 interface TechniqueConfig {
@@ -89,7 +120,18 @@ export default function App() {
     const saved = localStorage.getItem('pomodoroState');
     if (saved) {
       const parsed = JSON.parse(saved);
-      return { ...parsed, isRunning: false, technique: parsed.technique || 'classic' };
+      return { 
+        ...parsed, 
+        isRunning: false, 
+        technique: parsed.technique || 'classic',
+        tasks: parsed.tasks || [],
+        sessions: parsed.sessions || [],
+        dailyStats: parsed.dailyStats || [],
+        dailyGoal: parsed.dailyGoal || 8,
+        currentStreak: parsed.currentStreak || 0,
+        longestStreak: parsed.longestStreak || 0,
+        interruptions: parsed.interruptions || 0,
+      };
     }
     return {
       mode: 'work',
@@ -98,8 +140,18 @@ export default function App() {
       completedSessions: 0,
       task: '',
       technique: 'classic',
+      tasks: [],
+      sessions: [],
+      dailyStats: [],
+      dailyGoal: 8,
+      currentStreak: 0,
+      longestStreak: 0,
+      interruptions: 0,
     };
   });
+
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar'>('timer');
+  const [showSettings, setShowSettings] = useState(false);
 
   const currentTechnique = TECHNIQUES[state.technique];
 
@@ -154,6 +206,11 @@ export default function App() {
                 body: `Your ${LABELS[newMode]} is ready.`,
               });
             }
+
+            // Record session (will be handled in separate effect)
+            setTimeout(() => {
+              recordSession(prev.mode, getDuration(prev.mode, prev.technique));
+            }, 0);
 
             return {
               ...prev,
@@ -253,6 +310,176 @@ export default function App() {
       timeLeft: getDuration('work', technique),
       isRunning: false,
     }));
+  };
+
+  // Task management
+  const addTask = (name: string, estimatedPomodoros: number = 1) => {
+    const newTask: Task = {
+      id: Date.now().toString(),
+      name,
+      estimatedPomodoros,
+      completedPomodoros: 0,
+      done: false,
+    };
+    setState(prev => ({ ...prev, tasks: [...prev.tasks, newTask] }));
+  };
+
+  const toggleTask = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t),
+    }));
+  };
+
+  const deleteTask = (id: string) => {
+    setState(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }));
+  };
+
+  const updateTaskPomodoros = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => 
+        t.id === id ? { ...t, completedPomodoros: t.completedPomodoros + 1 } : t
+      ),
+    }));
+  };
+
+  // Interruption tracking
+  const logInterruption = () => {
+    setState(prev => ({ ...prev, interruptions: prev.interruptions + 1 }));
+  };
+
+  // Update daily stats
+  const updateDailyStats = (mode: Mode, duration: number) => {
+    const today = new Date().toISOString().split('T')[0];
+    setState(prev => {
+      const existingStats = prev.dailyStats.find(s => s.date === today);
+      const focusMinutes = mode === 'work' ? Math.round(duration / 60) : 0;
+      
+      let newDailyStats;
+      if (existingStats) {
+        newDailyStats = prev.dailyStats.map(s => 
+          s.date === today 
+            ? { 
+                ...s, 
+                sessions: s.sessions + (mode === 'work' ? 1 : 0),
+                focusMinutes: s.focusMinutes + focusMinutes,
+                interruptions: s.interruptions + (mode === 'work' ? prev.interruptions : 0),
+              }
+            : s
+        );
+      } else {
+        newDailyStats = [...prev.dailyStats, {
+          date: today,
+          sessions: mode === 'work' ? 1 : 0,
+          focusMinutes,
+          interruptions: mode === 'work' ? prev.interruptions : 0,
+        }];
+      }
+
+      // Update streak
+      let currentStreak = prev.currentStreak;
+      let longestStreak = prev.longestStreak;
+      
+      if (mode === 'work') {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStats = prev.dailyStats.find(s => s.date === yesterdayStr);
+        
+        if (!yesterdayStats || yesterdayStats.sessions === 0) {
+          currentStreak = 1;
+        } else if (currentStreak === 0) {
+          currentStreak = 1;
+        } else {
+          currentStreak += 1;
+        }
+        
+        longestStreak = Math.max(longestStreak, currentStreak);
+      }
+
+      return {
+        ...prev,
+        dailyStats: newDailyStats,
+        currentStreak,
+        longestStreak,
+        interruptions: mode === 'work' ? 0 : prev.interruptions,
+      };
+    });
+  };
+
+  // Record session
+  const recordSession = (mode: Mode, duration: number) => {
+    const session: Session = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      mode,
+      duration,
+      task: state.task,
+      interruptions: state.interruptions,
+    };
+    
+    setState(prev => ({
+      ...prev,
+      sessions: [...prev.sessions, session],
+    }));
+
+    updateDailyStats(mode, duration);
+
+    // Update task pomodoros if working
+    if (mode === 'work' && state.tasks.length > 0) {
+      const activeTask = state.tasks.find(t => !t.done);
+      if (activeTask) {
+        updateTaskPomodoros(activeTask.id);
+      }
+    }
+  };
+
+  // Export data
+  const exportData = () => {
+    const data = {
+      sessions: state.sessions,
+      dailyStats: state.dailyStats,
+      tasks: state.tasks,
+      exportedAt: new Date().toISOString(),
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pomodoro-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Get today's stats
+  const getTodayStats = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return state.dailyStats.find(s => s.date === today) || {
+      date: today,
+      sessions: 0,
+      focusMinutes: 0,
+      interruptions: 0,
+    };
+  };
+
+  // Get week stats
+  const getWeekStats = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const stats = state.dailyStats.find(s => s.date === dateStr);
+      days.push({
+        date: dateStr,
+        dayName: date.toLocaleDateString('en', { weekday: 'short' }),
+        sessions: stats?.sessions || 0,
+        focusMinutes: stats?.focusMinutes || 0,
+      });
+    }
+    return days;
   };
 
   return (
@@ -488,6 +715,303 @@ export default function App() {
             <strong>Tip:</strong> If another task comes to mind, write it down instead of switching tasks.
           </div>
         </div>
+
+        {/* Navigation tabs */}
+        <div className="nav-tabs">
+          <button 
+            className={`nav-tab ${activeTab === 'timer' ? 'active' : ''}`}
+            onClick={() => setActiveTab('timer')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Timer
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'tasks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tasks')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Tasks
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'stats' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stats')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Stats
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Calendar
+          </button>
+        </div>
+
+        {/* Timer view (default) */}
+        {activeTab === 'timer' && (
+          <div className="tab-content">
+            {/* Timer content is already shown above */}
+          </div>
+        )}
+
+        {/* Tasks view */}
+        {activeTab === 'tasks' && (
+          <div className="tab-content">
+            <div className="tasks-header">
+              <h2>Tasks</h2>
+              <button className="add-task-btn" onClick={() => {
+                const name = prompt('Task name:');
+                if (name) {
+                  const pomodoros = parseInt(prompt('Estimated pomodoros:', '1') || '1');
+                  addTask(name, pomodoros);
+                }
+              }}>
+                <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Task
+              </button>
+            </div>
+
+            <div className="tasks-list">
+              {state.tasks.length === 0 ? (
+                <div className="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                  <p>No tasks yet. Add your first task to get started!</p>
+                </div>
+              ) : (
+                state.tasks.map(task => (
+                  <div key={task.id} className={`task-item ${task.done ? 'done' : ''}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={task.done}
+                      onChange={() => toggleTask(task.id)}
+                      className="task-checkbox"
+                    />
+                    <div className="task-info">
+                      <div className="task-name">{task.name}</div>
+                      <div className="task-progress">
+                        {task.completedPomodoros} / {task.estimatedPomodoros} pomodoros
+                      </div>
+                    </div>
+                    <button 
+                      className="delete-task-btn"
+                      onClick={() => deleteTask(task.id)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {state.tasks.length > 0 && (
+              <div className="tasks-summary">
+                <div className="summary-item">
+                  <span className="summary-label">Total Tasks</span>
+                  <span className="summary-value">{state.tasks.length}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Completed</span>
+                  <span className="summary-value">{state.tasks.filter(t => t.done).length}</span>
+                </div>
+                <div className="summary-item">
+                  <span className="summary-label">Total Pomodoros</span>
+                  <span className="summary-value">
+                    {state.tasks.reduce((sum, t) => sum + t.completedPomodoros, 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats view */}
+        {activeTab === 'stats' && (
+          <div className="tab-content">
+            <div className="stats-header">
+              <h2>Statistics</h2>
+              <button className="export-btn" onClick={exportData}>
+                <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export
+              </button>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-icon">🔥</div>
+                <div className="stat-value">{state.currentStreak}</div>
+                <div className="stat-label">Day Streak</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">🏆</div>
+                <div className="stat-value">{state.longestStreak}</div>
+                <div className="stat-label">Longest Streak</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">🍅</div>
+                <div className="stat-value">{getTodayStats().sessions}</div>
+                <div className="stat-label">Today's Sessions</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">⏱️</div>
+                <div className="stat-value">{getTodayStats().focusMinutes}</div>
+                <div className="stat-label">Minutes Focused</div>
+              </div>
+            </div>
+
+            <div className="weekly-chart">
+              <h3>This Week</h3>
+              <div className="chart-bars">
+                {getWeekStats().map((day, i) => (
+                  <div key={i} className="chart-bar-wrapper">
+                    <div className="chart-bar-container">
+                      <div 
+                        className="chart-bar"
+                        style={{ 
+                          height: `${Math.min((day.sessions / state.dailyGoal) * 100, 100)}%`,
+                          background: day.sessions >= state.dailyGoal 
+                            ? 'linear-gradient(135deg, #68b879 0%, #4a9d5f 100%)'
+                            : `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`
+                        }}
+                      />
+                    </div>
+                    <div className="chart-label">{day.dayName}</div>
+                    <div className="chart-value">{day.sessions}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="goal-progress">
+              <h3>Daily Goal Progress</h3>
+              <div className="goal-bar">
+                <div 
+                  className="goal-fill"
+                  style={{ 
+                    width: `${Math.min((getTodayStats().sessions / state.dailyGoal) * 100, 100)}%`,
+                    background: getTodayStats().sessions >= state.dailyGoal
+                      ? 'linear-gradient(90deg, #68b879 0%, #4a9d5f 100%)'
+                      : `linear-gradient(90deg, ${color} 0%, ${color}dd 100%)`
+                  }}
+                />
+              </div>
+              <div className="goal-text">
+                {getTodayStats().sessions} / {state.dailyGoal} sessions
+              </div>
+            </div>
+
+            <div className="interruption-stats">
+              <h3>Interruptions Today</h3>
+              <div className="interruption-count">
+                {getTodayStats().interruptions}
+              </div>
+              <button className="log-interruption-btn" onClick={logInterruption}>
+                + Log Interruption
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Calendar view */}
+        {activeTab === 'calendar' && (
+          <div className="tab-content">
+            <div className="calendar-header">
+              <h2>Activity Calendar</h2>
+            </div>
+
+            <div className="calendar-grid">
+              {(() => {
+                const days = [];
+                for (let i = 29; i >= 0; i--) {
+                  const date = new Date();
+                  date.setDate(date.getDate() - i);
+                  const dateStr = date.toISOString().split('T')[0];
+                  const stats = state.dailyStats.find(s => s.date === dateStr);
+                  const sessions = stats?.sessions || 0;
+                  const level = sessions === 0 ? 0 : sessions < 4 ? 1 : sessions < 8 ? 2 : 3;
+                  
+                  days.push(
+                    <div 
+                      key={dateStr}
+                      className={`calendar-day level-${level}`}
+                      title={`${dateStr}: ${sessions} sessions`}
+                    >
+                      {date.getDate()}
+                    </div>
+                  );
+                }
+                return days;
+              })()}
+            </div>
+
+            <div className="calendar-legend">
+              <span>Less</span>
+              <div className="calendar-day level-0"></div>
+              <div className="calendar-day level-1"></div>
+              <div className="calendar-day level-2"></div>
+              <div className="calendar-day level-3"></div>
+              <span>More</span>
+            </div>
+
+            <div className="recent-sessions">
+              <h3>Recent Sessions</h3>
+              {state.sessions.length === 0 ? (
+                <div className="empty-state">
+                  <p>No sessions yet. Start your first pomodoro!</p>
+                </div>
+              ) : (
+                <div className="sessions-list">
+                  {state.sessions.slice(-10).reverse().map(session => (
+                    <div key={session.id} className="session-item">
+                      <div className="session-mode">
+                        {session.mode === 'work' ? '🍅' : session.mode === 'shortBreak' ? '☕' : '🌴'}
+                      </div>
+                      <div className="session-details">
+                        <div className="session-task">{session.task || 'Focus session'}</div>
+                        <div className="session-meta">
+                          {Math.round(session.duration / 60)} min · {new Date(session.date).toLocaleDateString()}
+                        </div>
+                      </div>
+                      {session.interruptions > 0 && (
+                        <div className="session-interruptions">
+                          ⚡ {session.interruptions}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="footer">
