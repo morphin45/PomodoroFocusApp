@@ -150,8 +150,57 @@ export default function App() {
     };
   });
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar'>('timer');
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'settings'>('timer');
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Settings state
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('pomodoroSettings');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      customDurations: {
+        work: 25 * 60,
+        shortBreak: 5 * 60,
+        longBreak: 15 * 60,
+      },
+      useCustomDurations: false,
+      dailyGoal: 8,
+      soundEnabled: true,
+      notificationsEnabled: true,
+      autoStartBreaks: false,
+      autoStartPomodoros: false,
+      longBreakInterval: 4,
+      theme: 'light',
+    };
+  });
+
+  // Save settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('pomodoroSettings', JSON.stringify(settings));
+  }, [settings]);
+
+  const updateSetting = (key: string, value: any) => {
+    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  const updateCustomDuration = (mode: 'work' | 'shortBreak' | 'longBreak', minutes: number) => {
+    setSettings((prev: any) => ({
+      ...prev,
+      customDurations: {
+        ...prev.customDurations,
+        [mode]: minutes * 60,
+      },
+    }));
+  };
+
+  const resetAllData = () => {
+    if (confirm('Are you sure you want to reset all data? This cannot be undone.')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
 
   const currentTechnique = TECHNIQUES[state.technique];
 
@@ -528,7 +577,13 @@ export default function App() {
             <p className="brand-subtitle">Work calmly. Focus deeply.</p>
           </div>
         </div>
-        <button className="icon-button" title="Settings">⚙</button>
+        <button 
+          className="icon-button" 
+          title="Settings"
+          onClick={() => setActiveTab('settings')}
+        >
+          ⚙
+        </button>
       </header>
 
       <section className="card">
@@ -760,6 +815,16 @@ export default function App() {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             Calendar
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            Settings
           </button>
         </div>
 
@@ -1009,6 +1074,165 @@ export default function App() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Settings view */}
+        {activeTab === 'settings' && (
+          <div className="tab-content">
+            <div className="settings-header">
+              <h2>Settings</h2>
+            </div>
+
+            <div className="settings-section">
+              <h3>Timer Durations</h3>
+              <div className="setting-item">
+                <label className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.useCustomDurations}
+                    onChange={(e) => updateSetting('useCustomDurations', e.target.checked)}
+                  />
+                  <span>Use custom durations</span>
+                </label>
+              </div>
+              
+              {settings.useCustomDurations && (
+                <div className="custom-durations">
+                  <div className="duration-input">
+                    <label>Focus (minutes)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={settings.customDurations.work / 60}
+                      onChange={(e) => updateCustomDuration('work', parseInt(e.target.value) || 25)}
+                    />
+                  </div>
+                  <div className="duration-input">
+                    <label>Short Break (minutes)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={settings.customDurations.shortBreak / 60}
+                      onChange={(e) => updateCustomDuration('shortBreak', parseInt(e.target.value) || 5)}
+                    />
+                  </div>
+                  <div className="duration-input">
+                    <label>Long Break (minutes)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={settings.customDurations.longBreak / 60}
+                      onChange={(e) => updateCustomDuration('longBreak', parseInt(e.target.value) || 15)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="settings-section">
+              <h3>Daily Goals</h3>
+              <div className="setting-item">
+                <label>Daily session goal</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={settings.dailyGoal}
+                  onChange={(e) => updateSetting('dailyGoal', parseInt(e.target.value) || 8)}
+                  className="goal-input"
+                />
+              </div>
+              <div className="setting-item">
+                <label>Long break after</label>
+                <input
+                  type="number"
+                  min="2"
+                  max="10"
+                  value={settings.longBreakInterval}
+                  onChange={(e) => updateSetting('longBreakInterval', parseInt(e.target.value) || 4)}
+                  className="goal-input"
+                />
+                <span className="setting-hint">sessions</span>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Notifications & Sound</h3>
+              <div className="setting-item">
+                <label className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.soundEnabled}
+                    onChange={(e) => updateSetting('soundEnabled', e.target.checked)}
+                  />
+                  <span>Sound notifications</span>
+                </label>
+              </div>
+              <div className="setting-item">
+                <label className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.notificationsEnabled}
+                    onChange={(e) => updateSetting('notificationsEnabled', e.target.checked)}
+                  />
+                  <span>Browser notifications</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="settings-section">
+              <h3>Auto-start</h3>
+              <div className="setting-item">
+                <label className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoStartBreaks}
+                    onChange={(e) => updateSetting('autoStartBreaks', e.target.checked)}
+                  />
+                  <span>Auto-start breaks</span>
+                </label>
+                <p className="setting-description">Automatically start break timer after focus session</p>
+              </div>
+              <div className="setting-item">
+                <label className="setting-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.autoStartPomodoros}
+                    onChange={(e) => updateSetting('autoStartPomodoros', e.target.checked)}
+                  />
+                  <span>Auto-start pomodoros</span>
+                </label>
+                <p className="setting-description">Automatically start next focus session after break</p>
+              </div>
+            </div>
+
+            <div className="settings-section danger-zone">
+              <h3>Data Management</h3>
+              <div className="setting-item">
+                <button className="export-btn" onClick={exportData}>
+                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export All Data
+                </button>
+              </div>
+              <div className="setting-item">
+                <button className="reset-btn" onClick={resetAllData}>
+                  <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Reset All Data
+                </button>
+                <p className="setting-description warning">This will delete all your tasks, sessions, and statistics</p>
+              </div>
             </div>
           </div>
         )}
