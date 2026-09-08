@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import AchievementSystem from './components/AchievementSystem';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
-import PremiumModal from './components/PremiumModal';
 import FocusScore from './components/FocusScore';
 import AmbientSounds from './components/AmbientSounds';
 import ThemeSelector from './components/ThemeSelector';
@@ -27,6 +26,11 @@ import BetterNotifications from './components/BetterNotifications';
 import DataImport from './components/DataImport';
 import DashboardWidgets from './components/DashboardWidgets';
 import Accessibility from './components/Accessibility';
+import TierComparison from './components/TierComparison';
+import UsageLimits from './components/UsageLimits';
+import TierBadge from './components/TierBadge';
+import FeatureGate from './components/FeatureGate';
+import { type Tier, type BillingCycle, TIER_CONFIGS, type UsageStats } from './utils/tierSystem';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -197,13 +201,13 @@ export default function App() {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Premium state
-  const [isPremium, setIsPremium] = useState(() => {
-    const saved = localStorage.getItem('pomodoroPremium');
-    return saved === 'true';
+  // Tier state
+  const [currentTier, setCurrentTier] = useState<Tier>(() => {
+    const saved = localStorage.getItem('pomodoroTier');
+    return (saved as Tier) || 'free';
   });
 
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
 
   // Notifications state
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -233,9 +237,23 @@ export default function App() {
     keyboardNav: true,
   });
 
-  const handleUpgrade = () => {
-    setIsPremium(true);    localStorage.setItem('pomodoroPremium', 'true');
-    setShowPremiumModal(false);
+  // Usage stats
+  const usageStats: UsageStats = {
+    tasks: state.tasks.length,
+    sounds: 0,
+    themes: 0,
+    customTechniques: 0,
+    notes: state.sessions.filter(s => s.notes).length,
+    goals: 0,
+    projects: 0,
+    exportsThisMonth: 0,
+  };
+
+  const handleTierSelect = (tier: Tier, billing: BillingCycle) => {
+    setCurrentTier(tier);
+    localStorage.setItem('pomodoroTier', tier);
+    localStorage.setItem('pomodoroBilling', billing);
+    setShowTierModal(false);
   };
 
   // Theme state
@@ -292,7 +310,7 @@ export default function App() {
   };
 
   const handleBuyStreakFreeze = () => {
-    setShowPremiumModal(true);
+    setShowTierModal(true);
   };
 
   const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history' | 'timeline' | 'notifications' | 'import' | 'dashboard' | 'accessibility'>('timer');
@@ -932,7 +950,7 @@ export default function App() {
         </div>
 
         {/* Focus Score Widget */}
-        <FocusScore score={focusScore} isPremium={isPremium} />
+        <FocusScore score={focusScore} isPremium={currentTier !== 'free'} />
 
         <div className="guide">
           <h2>How to use Pomodoro</h2>
@@ -1004,12 +1022,12 @@ export default function App() {
             Achievements
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${!isPremium ? 'premium-tab' : ''}`}
+            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${currentTier === 'free' ? 'premium-tab' : ''}`}
             onClick={() => {
-              if (isPremium) {
+              if (currentTier !== 'free') {
                 setActiveTab('analytics');
               } else {
-                setShowPremiumModal(true);
+                setShowTierModal(true);
               }
             }}
           >
@@ -1018,7 +1036,7 @@ export default function App() {
               <line x1="12" y1="20" x2="12" y2="4" />
               <line x1="6" y1="20" x2="6" y2="14" />
             </svg>
-            Analytics {!isPremium && <span className="pro-badge-small">PRO</span>}
+            Analytics {currentTier === 'free' && <span className="pro-badge-small">PRO</span>}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'sounds' ? 'active' : ''}`}
@@ -1042,12 +1060,12 @@ export default function App() {
             Themes
           </button>
           <button 
-            className={`nav-tab ${activeTab === 'custom-techniques' ? 'active' : ''} ${!isPremium ? 'premium-tab' : ''}`}
+            className={`nav-tab ${activeTab === 'custom-techniques' ? 'active' : ''} ${currentTier === 'free' ? 'premium-tab' : ''}`}
             onClick={() => {
-              if (isPremium) {
+              if (currentTier !== 'free') {
                 setActiveTab('custom-techniques');
               } else {
-                setShowPremiumModal(true);
+                setShowTierModal(true);
               }
             }}
           >
@@ -1055,7 +1073,7 @@ export default function App() {
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            Custom {!isPremium && <span className="pro-badge-small">PRO</span>}
+            Custom {currentTier === 'free' && <span className="pro-badge-small">PRO</span>}
           </button>
           <button 
             className={`nav-tab ${activeTab === 'break-activities' ? 'active' : ''}`}
@@ -1479,7 +1497,7 @@ export default function App() {
               currentStreak={state.currentStreak}
               focusMinutes={state.dailyStats.reduce((sum, stat) => sum + stat.focusMinutes, 0)}
               tasksCompleted={tasksCompleted}
-              isPremium={isPremium}
+              isPremium={currentTier !== 'free'}
             />
           </div>
         )}
@@ -1490,8 +1508,8 @@ export default function App() {
             <AdvancedAnalytics
               sessions={state.sessions}
               dailyStats={state.dailyStats}
-              isPremium={isPremium}
-              onUpgrade={() => setShowPremiumModal(true)}
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
             />
           </div>
         )}
@@ -1500,8 +1518,8 @@ export default function App() {
         {activeTab === 'sounds' && (
           <div className="tab-content">
             <AmbientSounds
-              isPremium={isPremium}
-              onUpgrade={() => setShowPremiumModal(true)}
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
             />
           </div>
         )}
@@ -1511,9 +1529,9 @@ export default function App() {
           <div className="tab-content">
             <ThemeSelector
               currentTheme={currentThemeId}
-              isPremium={isPremium}
+              isPremium={currentTier !== 'free'}
               onThemeChange={handleThemeChange}
-              onUpgrade={() => setShowPremiumModal(true)}
+              onUpgrade={() => setShowTierModal(true)}
             />
           </div>
         )}
@@ -1522,8 +1540,8 @@ export default function App() {
         {activeTab === 'custom-techniques' && (
           <div className="tab-content">
             <CustomTechniques
-              isPremium={isPremium}
-              onUpgrade={() => setShowPremiumModal(true)}
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
             />
           </div>
         )}
@@ -1691,12 +1709,31 @@ export default function App() {
         onClose={() => setShowShortcuts(false)}
       />
 
-      {/* Premium Modal */}
-      <PremiumModal
-        isOpen={showPremiumModal}
-        onClose={() => setShowPremiumModal(false)}
-        onUpgrade={handleUpgrade}
-      />
+      {/* Tier Comparison Modal */}
+      {showTierModal && (
+        <TierComparison
+          currentTier={currentTier}
+          onSelectTier={handleTierSelect}
+          onClose={() => setShowTierModal(false)}
+        />
+      )}
+
+      {/* Tier Badge */}
+      <div className="tier-badge-wrapper">
+        <TierBadge 
+          tier={currentTier} 
+          onClick={() => setShowTierModal(true)} 
+        />
+      </div>
+
+      {/* Usage Limits */}
+      <div className="usage-limits-wrapper">
+        <UsageLimits
+          tier={currentTier}
+          usage={usageStats}
+          onUpgrade={() => setShowTierModal(true)}
+        />
+      </div>
 
       <div className="footer">
         Focus for {Math.round(currentTechnique.work / 60)} minutes. Rest. Repeat.
