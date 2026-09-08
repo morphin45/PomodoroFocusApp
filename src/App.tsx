@@ -16,6 +16,11 @@ import StreakProtection from './components/StreakProtection';
 import HealthReminders from './components/HealthReminders';
 import KeyboardShortcuts from './components/KeyboardShortcuts';
 import FocusMode from './components/FocusMode';
+import TaskCategories from './components/TaskCategories';
+import SessionNotes from './components/SessionNotes';
+import WelcomeBack from './components/WelcomeBack';
+import Goals from './components/Goals';
+import SessionHistory from './components/SessionHistory';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -26,6 +31,8 @@ interface Task {
   estimatedPomodoros: number;
   completedPomodoros: number;
   done: boolean;
+  project?: string;
+  category?: string;
 }
 
 interface Session {
@@ -35,6 +42,8 @@ interface Session {
   duration: number;
   task: string;
   interruptions: number;
+  notes?: string;
+  tags?: string[];
 }
 
 interface DailyStats {
@@ -253,7 +262,7 @@ export default function App() {
     setShowPremiumModal(true);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak'>('timer');
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history'>('timer');
   const currentTechnique = TECHNIQUES[state.technique];
   
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
@@ -636,6 +645,17 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Welcome Back Modal */}
+      {userName && !showOnboarding && (
+        <WelcomeBack
+          userName={userName}
+          currentStreak={state.currentStreak}
+          todaySessions={state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.sessions || 0}
+          todayFocusMinutes={state.dailyStats.find(s => s.date === new Date().toISOString().split('T')[0])?.focusMinutes || 0}
+          lastSessionDate={state.sessions.length > 0 ? state.sessions[state.sessions.length - 1].date : undefined}
+        />
+      )}
+
       <header className="brand">
         <div className="brand-title">
           <div className="tomato-logo" aria-label="Pomodoro tomato logo">
@@ -1046,6 +1066,52 @@ export default function App() {
             </svg>
             Streak
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'categories' ? 'active' : ''}`}
+            onClick={() => setActiveTab('categories')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Categories
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'notes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('notes')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            Notes
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'goals' ? 'active' : ''}`}
+            onClick={() => setActiveTab('goals')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            Goals
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            History
+          </button>
         </div>
 
         {/* Timer view (default) */}
@@ -1409,6 +1475,58 @@ export default function App() {
               onUseFreeze={handleUseStreakFreeze}
               onBuyFreeze={handleBuyStreakFreeze}
             />
+          </div>
+        )}
+
+        {/* Task Categories view */}
+        {activeTab === 'categories' && (
+          <div className="tab-content">
+            <TaskCategories
+              tasks={state.tasks}
+              onUpdateTask={(taskId, updates) => {
+                setState(prev => ({
+                  ...prev,
+                  tasks: prev.tasks.map(t => 
+                    t.id === taskId ? { ...t, ...updates } : t
+                  ),
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {/* Session Notes view */}
+        {activeTab === 'notes' && (
+          <div className="tab-content">
+            <SessionNotes
+              sessions={state.sessions}
+              onUpdateSession={(sessionId, updates) => {
+                setState(prev => ({
+                  ...prev,
+                  sessions: prev.sessions.map(s => 
+                    s.id === sessionId ? { ...s, ...updates } : s
+                  ),
+                }));
+              }}
+            />
+          </div>
+        )}
+
+        {/* Goals view */}
+        {activeTab === 'goals' && (
+          <div className="tab-content">
+            <Goals
+              currentStreak={state.currentStreak}
+              totalSessions={state.sessions.length}
+              totalFocusMinutes={state.sessions.reduce((sum, s) => sum + s.duration / 60, 0)}
+            />
+          </div>
+        )}
+
+        {/* Session History view */}
+        {activeTab === 'history' && (
+          <div className="tab-content">
+            <SessionHistory sessions={state.sessions} />
           </div>
         )}
       </section>
