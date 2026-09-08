@@ -201,81 +201,143 @@ body *:not(.tab):not(.controls button):not(.skip-btn):not(.theme-toggle) {
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
 }
 
-/* Dark Mode Styles - Optimized for Night Use */
+/* Dark Mode Styles - Premium Night Experience */
 body[data-theme="dark"] {
-  --background: #0f0f0f;
-  --background-dark: #050505;
-  --card: rgba(20, 20, 20, 0.98);
-  --text: #d4d4d4;
-  --muted: #6a6a6a;
-  --border: rgba(255, 255, 255, 0.08);
-  --red: #e85252;
-  --red-dark: #c94040;
-  --red-light: #2d1515;
-  --green: #5a9d6a;
-  --blue: #5a87d4;
-  --shadow: 0 25px 70px rgba(0, 0, 0, 0.7);
-  --glow: rgba(232, 82, 82, 0.15);
+  --background: #0a0a0a;
+  --background-dark: #000000;
+  --card: rgba(18, 18, 18, 0.95);
+  --text: #c8c8c8;
+  --muted: #5a5a5a;
+  --border: rgba(255, 255, 255, 0.06);
+  --red: #d44a4a;
+  --red-dark: #b83a3a;
+  --red-light: #2a1212;
+  --green: #4a8a5a;
+  --blue: #4a77c4;
+  --shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
+  --glow: rgba(212, 74, 74, 0.12);
+  --warm-glow: rgba(255, 180, 100, 0.08);
 }
 
 body[data-theme="dark"] {
   background: 
-    radial-gradient(circle at 10% 0%, #1a0f0f 0, transparent 40%),
-    radial-gradient(circle at 100% 100%, #0f0f1a 0, transparent 40%),
+    radial-gradient(ellipse at 20% 0%, rgba(40, 20, 10, 0.4) 0, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(30, 15, 40, 0.3) 0, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(20, 10, 5, 0.2) 0, transparent 70%),
     var(--background);
   color-scheme: dark;
 }
 
-/* Reduce brightness for night mode */
+/* Ultra-low brightness for comfortable night viewing */
 body[data-theme="dark"] * {
-  filter: brightness(0.95);
+  filter: brightness(0.85) contrast(1.05);
 }
 
+/* Warm ambient light effect */
+body[data-theme="dark"]::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(255, 180, 100, 0.03) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cards with subtle depth */
 body[data-theme="dark"] .card,
 body[data-theme="dark"] .task-item,
 body[data-theme="dark"] .stat-card {
+  background: var(--card);
   box-shadow: 
-    0 4px 20px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-body[data-theme="dark"] .icon-button {
-  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(20, 20, 20, 0.9) 100%);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-body[data-theme="dark"] .icon-button:hover {
-  background: linear-gradient(135deg, rgba(40, 40, 40, 1) 0%, rgba(30, 30, 30, 0.95) 100%);
-  box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-/* Soft glow effects for dark mode */
-body[data-theme="dark"] .start:hover {
-  box-shadow: 
-    0 8px 24px var(--glow),
-    0 0 40px var(--glow);
-}
-
-body[data-theme="dark"] .timer-ring {
-  box-shadow: 
-    0 0 60px var(--glow),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 body[data-theme="dark"] .card {
-  background: var(--card);
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: var(--shadow);
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 20, 0.98) 0%,
+    rgba(15, 15, 15, 0.95) 100%
+  );
 }
 
+/* Icon buttons with warm glow */
+body[data-theme="dark"] .icon-button {
+  background: linear-gradient(135deg, rgba(25, 25, 25, 0.95) 0%, rgba(18, 18, 18, 0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .icon-button:hover {
+  background: linear-gradient(135deg, rgba(35, 35, 35, 1) 0%, rgba(25, 25, 25, 0.95) 100%);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.7),
+    0 0 20px var(--warm-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+/* Soft warm glow for primary actions */
+body[data-theme="dark"] .start {
+  box-shadow: 
+    0 8px 24px rgba(212, 74, 74, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .start:hover {
+  box-shadow: 
+    0 12px 32px rgba(212, 74, 74, 0.3),
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(212, 74, 74, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Timer ring with ambient glow */
+body[data-theme="dark"] .timer-ring {
+  box-shadow: 
+    0 0 80px var(--glow),
+    0 0 40px rgba(212, 74, 74, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+body[data-theme="dark"] .timer-ring.running {
+  animation: nightGlow 3s ease-in-out infinite;
+}
+
+@keyframes nightGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 80px var(--glow),
+      0 0 40px rgba(212, 74, 74, 0.08),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  }
+  50% {
+    box-shadow: 
+      0 0 100px var(--glow),
+      0 0 60px rgba(212, 74, 74, 0.12),
+      0 0 120px rgba(212, 74, 74, 0.05),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  }
+}
+
+/* Tabs with subtle warmth */
 body[data-theme="dark"] .tabs {
-  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+  background: linear-gradient(135deg, rgba(25, 25, 25, 0.9) 0%, rgba(18, 18, 18, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 body[data-theme="dark"] .tab {
@@ -283,60 +345,125 @@ body[data-theme="dark"] .tab {
 }
 
 body[data-theme="dark"] .tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
+body[data-theme="dark"] .tab.active {
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Technique box with warm tones */
 body[data-theme="dark"] .technique-box {
-  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(25, 22, 20, 0.9) 0%, rgba(18, 16, 15, 0.85) 100%);
+  border-color: rgba(255, 180, 100, 0.08);
 }
 
 body[data-theme="dark"] .technique-box select {
-  background: #1a1a1a;
+  background: rgba(15, 15, 15, 0.95);
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-body[data-theme="dark"] .task-input {
-  background: #1a1a1a;
-  color: var(--text);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-body[data-theme="dark"] .task-input:focus {
-  background: #222;
-}
-
-body[data-theme="dark"] .secondary {
-  background: #2a2a2a;
-  color: var(--text);
-}
-
-body[data-theme="dark"] .secondary:hover {
-  background: #333;
-}
-
-body[data-theme="dark"] .skip-btn {
-  background: #2a2a2a;
-  color: var(--text);
-}
-
-body[data-theme="dark"] .skip-btn:hover {
-  background: #333;
-}
-
-body[data-theme="dark"] .guide {
-  background: #1f1f1f;
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-body[data-theme="dark"] .tip {
-  background: #2a1a1a;
-  color: #ffb3b3;
+body[data-theme="dark"] .technique-box select:hover {
+  border-color: rgba(255, 180, 100, 0.2);
 }
 
+body[data-theme="dark"] .technique-box select:focus {
+  border-color: var(--red);
+  box-shadow: 
+    0 0 0 3px rgba(212, 74, 74, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Input fields with subtle depth */
+body[data-theme="dark"] .task-input {
+  background: rgba(15, 15, 15, 0.95);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="dark"] .task-input:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body[data-theme="dark"] .task-input:focus {
+  background: rgba(20, 20, 20, 0.98);
+  border-color: var(--red);
+  box-shadow: 
+    0 0 0 3px rgba(212, 74, 74, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Secondary buttons with depth */
+body[data-theme="dark"] .secondary {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(22, 22, 22, 0.9) 100%);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+body[data-theme="dark"] .secondary:hover {
+  background: linear-gradient(135deg, rgba(38, 38, 38, 0.98) 0%, rgba(28, 28, 28, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .skip-btn {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(22, 22, 22, 0.9) 100%);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+body[data-theme="dark"] .skip-btn:hover {
+  background: linear-gradient(135deg, rgba(38, 38, 38, 0.98) 0%, rgba(28, 28, 28, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Guide section with warm background */
+body[data-theme="dark"] .guide {
+  background: linear-gradient(135deg, rgba(25, 22, 20, 0.9) 0%, rgba(18, 16, 15, 0.85) 100%);
+  border-color: rgba(255, 180, 100, 0.08);
+}
+
+body[data-theme="dark"] .guide h2 {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .guide ol {
+  color: var(--muted);
+}
+
+/* Tip with warm amber glow */
+body[data-theme="dark"] .tip {
+  background: rgba(40, 25, 15, 0.6);
+  color: #e8b89a;
+  border: 1px solid rgba(255, 180, 100, 0.1);
+  box-shadow: 0 2px 8px rgba(255, 180, 100, 0.05);
+}
+
+body[data-theme="dark"] .tip strong {
+  color: #ffb870;
+}
+
+/* Navigation tabs */
 body[data-theme="dark"] .nav-tabs {
-  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+  background: linear-gradient(135deg, rgba(25, 25, 25, 0.9) 0%, rgba(18, 18, 18, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 body[data-theme="dark"] .nav-tab {
@@ -344,32 +471,64 @@ body[data-theme="dark"] .nav-tab {
 }
 
 body[data-theme="dark"] .nav-tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
+body[data-theme="dark"] .nav-tab.active {
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Task items with subtle depth */
 body[data-theme="dark"] .task-item {
-  background: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 20, 0.95);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 body[data-theme="dark"] .task-item:hover {
-  border-color: rgba(240, 82, 82, 0.3);
+  border-color: rgba(212, 74, 74, 0.2);
+  background: rgba(25, 25, 25, 0.98);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(212, 74, 74, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 body[data-theme="dark"] .task-item.done {
-  background: #151515;
+  background: rgba(15, 15, 15, 0.9);
+  opacity: 0.5;
 }
 
-body[data-theme="dark"] .delete-task-btn {
-  background: #2a2a2a;
+body[data-theme="dark"] .task-name {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .task-progress {
   color: var(--muted);
 }
 
-body[data-theme="dark"] .delete-task-btn:hover {
-  background: #3d1f1f;
-  color: var(--red);
+/* Delete button with warm red */
+body[data-theme="dark"] .delete-task-btn {
+  background: rgba(30, 30, 30, 0.95);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+body[data-theme="dark"] .delete-task-btn:hover {
+  background: rgba(50, 20, 20, 0.9);
+  color: var(--red);
+  border-color: rgba(212, 74, 74, 0.3);
+  box-shadow: 0 2px 8px rgba(212, 74, 74, 0.2);
+}
+
+/* Stats and charts with warm depth */
 body[data-theme="dark"] .tasks-summary,
 body[data-theme="dark"] .stat-card,
 body[data-theme="dark"] .weekly-chart,
@@ -377,105 +536,306 @@ body[data-theme="dark"] .goal-progress,
 body[data-theme="dark"] .interruption-stats,
 body[data-theme="dark"] .calendar-grid,
 body[data-theme="dark"] .recent-sessions {
-  background: linear-gradient(135deg, #1f1f1f 0%, #1a1a1a 100%);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(22, 22, 22, 0.95) 0%, rgba(16, 16, 16, 0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
+body[data-theme="dark"] .stat-card:hover {
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(212, 74, 74, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+body[data-theme="dark"] .stat-value {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .stat-label {
+  color: var(--muted);
+}
+
+/* Session items */
 body[data-theme="dark"] .session-item {
-  background: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 20, 0.95);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 body[data-theme="dark"] .session-item:hover {
-  border-color: rgba(240, 82, 82, 0.3);
+  border-color: rgba(212, 74, 74, 0.2);
+  background: rgba(25, 25, 25, 0.98);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(212, 74, 74, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+body[data-theme="dark"] .session-task {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .session-meta {
+  color: var(--muted);
 }
 
 body[data-theme="dark"] .session-interruptions {
-  background: #3d1f1f;
-  color: #ffb3b3;
+  background: rgba(50, 20, 20, 0.8);
+  color: #e8a0a0;
+  border: 1px solid rgba(212, 74, 74, 0.2);
 }
 
+/* Calendar with warm activity levels */
 body[data-theme="dark"] .calendar-day.level-0 {
-  background: #2a2a2a;
+  background: rgba(30, 30, 30, 0.8);
   color: var(--muted);
 }
 
 body[data-theme="dark"] .calendar-day.level-1 {
-  background: rgba(240, 82, 82, 0.3);
-  color: #ffb3b3;
+  background: rgba(212, 74, 74, 0.25);
+  color: #e8a0a0;
+  border: 1px solid rgba(212, 74, 74, 0.15);
 }
 
 body[data-theme="dark"] .calendar-day.level-2 {
-  background: rgba(240, 82, 82, 0.5);
+  background: rgba(212, 74, 74, 0.4);
+  color: #f0c0c0;
+  border: 1px solid rgba(212, 74, 74, 0.3);
+  box-shadow: 0 0 8px rgba(212, 74, 74, 0.2);
+}
+
+body[data-theme="dark"] .calendar-day.level-3 {
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 0 12px rgba(212, 74, 74, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+body[data-theme="dark"] .calendar-legend {
+  color: var(--muted);
 }
 
 body[data-theme="dark"] .empty-state {
   color: var(--muted);
 }
 
+body[data-theme="dark"] .empty-state svg {
+  opacity: 0.2;
+}
+
+/* Timer ring inner circle */
 body[data-theme="dark"] .timer-ring::before {
-  background: #1a1a1a;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+  background: radial-gradient(circle, rgba(18, 18, 18, 0.98) 0%, rgba(12, 12, 12, 0.95) 100%);
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    inset 0 0 60px rgba(212, 74, 74, 0.03);
 }
 
+/* Add task button with warm glow */
 body[data-theme="dark"] .add-task-btn {
-  box-shadow: 0 4px 12px rgba(240, 82, 82, 0.4);
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+body[data-theme="dark"] .add-task-btn:hover {
+  box-shadow: 
+    0 6px 24px rgba(212, 74, 74, 0.4),
+    0 3px 12px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(212, 74, 74, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Export button */
 body[data-theme="dark"] .export-btn {
-  background: #1a1a1a;
+  background: rgba(20, 20, 20, 0.95);
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 body[data-theme="dark"] .export-btn:hover {
   border-color: var(--red);
-  box-shadow: 0 4px 12px rgba(240, 82, 82, 0.3);
+  background: rgba(25, 25, 25, 0.98);
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
+/* Log interruption button */
 body[data-theme="dark"] .log-interruption-btn {
-  background: #1a1a1a;
+  background: rgba(20, 20, 20, 0.95);
   color: var(--red);
   border-color: var(--red);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 body[data-theme="dark"] .log-interruption-btn:hover {
   background: var(--red);
   color: white;
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(212, 74, 74, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* Input fields */
 body[data-theme="dark"] .goal-input,
 body[data-theme="dark"] .duration-input input {
-  background: #1a1a1a;
+  background: rgba(15, 15, 15, 0.95);
   color: var(--text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .goal-input:hover,
+body[data-theme="dark"] .duration-input input:hover {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-body[data-theme="dark"] .custom-durations {
-  background: #151515;
-  border-color: rgba(255, 255, 255, 0.1);
+body[data-theme="dark"] .goal-input:focus,
+body[data-theme="dark"] .duration-input input:focus {
+  border-color: var(--red);
+  box-shadow: 
+    0 0 0 3px rgba(212, 74, 74, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
+body[data-theme="dark"] .custom-durations {
+  background: rgba(15, 15, 15, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Settings sections */
 body[data-theme="dark"] .settings-section {
-  background: linear-gradient(135deg, #1f1f1f 0%, #1a1a1a 100%);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(22, 22, 22, 0.95) 0%, rgba(16, 16, 16, 0.9) 100%);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+body[data-theme="dark"] .settings-section h3 {
+  color: var(--text);
 }
 
 body[data-theme="dark"] .settings-section.danger-zone {
-  background: linear-gradient(135deg, #2a1a1a 0%, #1a1a1a 100%);
-  border-color: rgba(240, 82, 82, 0.3);
+  background: linear-gradient(135deg, rgba(40, 20, 20, 0.9) 0%, rgba(20, 15, 15, 0.85) 100%);
+  border-color: rgba(212, 74, 74, 0.2);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(212, 74, 74, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
+body[data-theme="dark"] .settings-section.danger-zone h3 {
+  color: var(--red);
+}
+
+/* Reset button */
 body[data-theme="dark"] .reset-btn {
-  background: #1a1a1a;
+  background: rgba(20, 20, 20, 0.95);
   color: var(--red);
   border-color: var(--red);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 body[data-theme="dark"] .reset-btn:hover {
   background: var(--red);
   color: white;
+  box-shadow: 
+    0 4px 16px rgba(212, 74, 74, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(212, 74, 74, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Chart bars */
+body[data-theme="dark"] .chart-bar {
+  opacity: 0.9;
+}
+
+body[data-theme="dark"] .chart-label {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .chart-value {
+  color: var(--text);
+}
+
+/* Goal progress bar */
+body[data-theme="dark"] .goal-bar {
+  background: rgba(30, 30, 30, 0.8);
+}
+
+body[data-theme="dark"] .goal-text {
+  color: var(--muted);
+}
+
+/* Interruption count */
+body[data-theme="dark"] .interruption-count {
+  color: var(--red);
+  text-shadow: 0 0 20px rgba(212, 74, 74, 0.3);
+}
+
+/* Summary items */
+body[data-theme="dark"] .summary-label {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .summary-value {
+  color: var(--text);
+}
+
+/* Footer */
+body[data-theme="dark"] .footer {
+  color: var(--muted);
+}
+
+/* Brand subtitle */
+body[data-theme="dark"] .brand-subtitle {
+  color: var(--muted);
+}
+
+/* Phase label */
+body[data-theme="dark"] .phase {
+  color: var(--muted);
+}
+
+/* Message */
+body[data-theme="dark"] .message {
+  color: var(--muted);
+}
+
+/* Task label */
+body[data-theme="dark"] .task-label {
+  color: var(--muted);
+}
+
+/* Session title */
+body[data-theme="dark"] .session-title {
+  color: var(--muted);
+}
+
+/* Session title strong */
+body[data-theme="dark"] .session-title strong {
+  color: var(--text);
 }
 
 /* Main card */
