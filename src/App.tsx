@@ -9,6 +9,13 @@ import CustomTechniques from './components/CustomTechniques';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 import { THEMES, getThemeById, applyTheme } from './themes/themes';
 import { exportToPDF, exportToCSV } from './utils/exportData';
+import Onboarding from './components/Onboarding';
+import EmptyState from './components/EmptyState';
+import BreakSuggestions from './components/BreakSuggestions';
+import StreakProtection from './components/StreakProtection';
+import HealthReminders from './components/HealthReminders';
+import KeyboardShortcuts from './components/KeyboardShortcuts';
+import FocusMode from './components/FocusMode';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -206,7 +213,47 @@ export default function App() {
     setCurrentThemeId(themeId);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques'>('timer');
+  // User name for personalization
+  const [userName, setUserName] = useState(() => {
+    return localStorage.getItem('pomodoroUserName') || '';
+  });
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('pomodoroOnboardingComplete');
+  });
+
+  // Keyboard shortcuts modal
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Focus mode
+  const [focusModeActive, setFocusModeActive] = useState(false);
+
+  // Streak freezes
+  const [streakFreezes, setStreakFreezes] = useState(() => {
+    const saved = localStorage.getItem('pomodoroStreakFreezes');
+    return saved ? parseInt(saved) : 1;
+  });
+
+  const handleCompleteOnboarding = (name: string) => {
+    setUserName(name);
+    localStorage.setItem('pomodoroUserName', name);
+    localStorage.setItem('pomodoroOnboardingComplete', 'true');
+    setShowOnboarding(false);
+  };
+
+  const handleUseStreakFreeze = () => {
+    if (streakFreezes > 0) {
+      setStreakFreezes(streakFreezes - 1);
+      localStorage.setItem('pomodoroStreakFreezes', (streakFreezes - 1).toString());
+    }
+  };
+
+  const handleBuyStreakFreeze = () => {
+    setShowPremiumModal(true);
+  };
+
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak'>('timer');
   const currentTechnique = TECHNIQUES[state.technique];
   
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
@@ -362,6 +409,21 @@ export default function App() {
     onToggleTheme: toggleTheme,
     isRunning: state.isRunning,
   });
+
+  // Show keyboard shortcuts modal on "?"
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   const selectMode = (mode: Mode) => {
     setState(prev => ({
@@ -942,6 +1004,48 @@ export default function App() {
             </svg>
             Custom {!isPremium && <span className="pro-badge-small">PRO</span>}
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'break-activities' ? 'active' : ''}`}
+            onClick={() => setActiveTab('break-activities')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+              <line x1="6" y1="1" x2="6" y2="4" />
+              <line x1="10" y1="1" x2="10" y2="4" />
+              <line x1="14" y1="1" x2="14" y2="4" />
+            </svg>
+            Breaks
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'health' ? 'active' : ''}`}
+            onClick={() => setActiveTab('health')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            Health
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'focus-mode' ? 'active' : ''}`}
+            onClick={() => setActiveTab('focus-mode')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+            Focus
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'streak' ? 'active' : ''}`}
+            onClick={() => setActiveTab('streak')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+            </svg>
+            Streak
+          </button>
         </div>
 
         {/* Timer view (default) */}
@@ -1269,7 +1373,60 @@ export default function App() {
             />
           </div>
         )}
+
+        {/* Break Activities view */}
+        {activeTab === 'break-activities' && (
+          <div className="tab-content">
+            <BreakSuggestions />
+          </div>
+        )}
+
+        {/* Health Reminders view */}
+        {activeTab === 'health' && (
+          <div className="tab-content">
+            <HealthReminders />
+          </div>
+        )}
+
+        {/* Focus Mode view */}
+        {activeTab === 'focus-mode' && (
+          <div className="tab-content">
+            <FocusMode
+              isActive={focusModeActive}
+              onToggle={() => setFocusModeActive(!focusModeActive)}
+              duration={currentTechnique.work / 60}
+            />
+          </div>
+        )}
+
+        {/* Streak Protection view */}
+        {activeTab === 'streak' && (
+          <div className="tab-content">
+            <StreakProtection
+              currentStreak={state.currentStreak}
+              longestStreak={state.longestStreak}
+              streakFreezes={streakFreezes}
+              onUseFreeze={handleUseStreakFreeze}
+              onBuyFreeze={handleBuyStreakFreeze}
+            />
+          </div>
+        )}
       </section>
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding
+          onComplete={() => handleCompleteOnboarding(userName)}
+          userName={userName}
+          onUserNameChange={setUserName}
+        />
+      )}
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcuts
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
 
       {/* Premium Modal */}
       <PremiumModal
