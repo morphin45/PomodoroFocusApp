@@ -1,703 +1,501 @@
 import { useState, useEffect } from 'react';
 import { usePomodoro, ACTIVITIES } from './hooks/usePomodoro';
-import type { Activity, TimerMode } from './hooks/usePomodoro';
-import { useDeviceSimulator } from './hooks/useDeviceSimulator';
-import PomodoroScene from './components/PomodoroScene';
+import PhysicalTomato from './components/PhysicalTomato';
+import type { TimerMode } from './hooks/usePomodoro';
 
-// Break activity suggestions (screen-free)
-const BREAK_ACTIVITIES = [
-  { emoji: '🚶', text: 'Take a short walk' },
-  { emoji: '🧘', text: 'Do some stretching' },
-  { emoji: '💧', text: 'Drink some water' },
-  { emoji: '👀', text: 'Look out the window' },
-  { emoji: '🌿', text: 'Water a plant' },
-  { emoji: '🫁', text: 'Deep breathing exercise' },
-  { emoji: '🎵', text: 'Listen to music' },
-  { emoji: '📝', text: 'Journal your thoughts' },
-  { emoji: '🍎', text: 'Have a healthy snack' },
-  { emoji: '🧹', text: 'Tidy your space' },
-];
+type Tab = 'timer' | 'tasks' | 'stats' | 'device';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 export default function App() {
-  const pomodoro = usePomodoro();
-  const device = useDeviceSimulator(
-    pomodoro.mode,
-    pomodoro.timerState,
-    pomodoro.servoAngle,
-    pomodoro.timeLeft,
-    pomodoro.sessionsCompleted,
-  );
-
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'device' | 'stats'>('timer');
-  const [breakSuggestion, setBreakSuggestion] = useState(BREAK_ACTIVITIES[0]);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const pomo = usePomodoro();
+  const [activeTab, setActiveTab] = useState<Tab>('timer');
+  const [activityInput, setActivityInput] = useState('');
+  const [newTaskName, setNewTaskName] = useState('');
   const [newTaskEstimate, setNewTaskEstimate] = useState(1);
-  const [interruptionNote, setInterruptionNote] = useState('');
-  const [showInterruptionModal, setShowInterruptionModal] = useState(false);
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [vibrating, setVibrating] = useState(false);
 
-  // Rotate break suggestions
+  // Update document title with timer
   useEffect(() => {
-    if (pomodoro.mode !== 'focus' && pomodoro.timerState === 'running') {
-      const idx = Math.floor(Math.random() * BREAK_ACTIVITIES.length);
-      setBreakSuggestion(BREAK_ACTIVITIES[idx]);
-    }
-  }, [pomodoro.mode, pomodoro.timerState]);
+    const modeLabel = pomo.mode === 'focus' ? '🍅 Focus' : pomo.mode === 'shortBreak' ? '☕ Break' : '🌊 Long Break';
+    document.title = pomo.timerState === 'running'
+      ? `${formatTime(pomo.timeLeft)} — ${modeLabel}`
+      : 'PomoDevice — Physical Pomodoro Companion';
+  }, [pomo.timeLeft, pomo.timerState, pomo.mode]);
 
-  // Send commands to device
+  // Vibrate on session complete
   useEffect(() => {
-    if (pomodoro.timerState === 'running') {
-      device.sendCommand({ type: pomodoro.mode === 'focus' ? 'START_FOCUS' : 'START_BREAK' });
-    } else if (pomodoro.timerState === 'paused') {
-      device.sendCommand({ type: 'PAUSE' });
-    } else if (pomodoro.timerState === 'idle') {
-      device.sendCommand({ type: 'RESET' });
+    if (pomo.timerState === 'idle' && pomo.timeLeft === 0) {
+      setVibrating(true);
+      const t = setTimeout(() => setVibrating(false), 700);
+      return () => clearTimeout(t);
     }
-  }, [pomodoro.timerState, pomodoro.mode]);
+  }, [pomo.timerState, pomo.timeLeft]);
 
-  const handleTomatoPress = () => {
-    pomodoro.toggleTimer();
+  const modeColor = pomo.mode === 'focus' ? '#ef4444' : pomo.mode === 'shortBreak' ? '#22c55e' : '#3b82f6';
+  const modeLabel = pomo.mode === 'focus' ? 'Focus' : pomo.mode === 'shortBreak' ? 'Short Break' : 'Long Break';
+
+  const handleStart = () => {
+    pomo.start();
+  };
+
+  const handleTomatoClick = () => {
+    pomo.start();
   };
 
   const handleAddTask = () => {
-    if (newTaskTitle.trim()) {
-      pomodoro.addTask(newTaskTitle, newTaskEstimate);
-      setNewTaskTitle('');
+    if (newTaskName.trim()) {
+      pomo.addTask(newTaskName.trim(), newTaskEstimate);
+      setNewTaskName('');
       setNewTaskEstimate(1);
     }
   };
 
-  const handleLogInterruption = (type: 'internal' | 'external') => {
-    pomodoro.logInterruption(type, interruptionNote || `${type} interruption`);
-    setInterruptionNote('');
-    setShowInterruptionModal(false);
-  };
-
-  const modeColors = {
-    focus: { bg: 'from-red-950/30 to-transparent', text: 'text-red-400', border: 'border-red-500/30', glow: 'shadow-red-500/20' },
-    shortBreak: { bg: 'from-green-950/30 to-transparent', text: 'text-green-400', border: 'border-green-500/30', glow: 'shadow-green-500/20' },
-    longBreak: { bg: 'from-blue-950/30 to-transparent', text: 'text-blue-400', border: 'border-blue-500/30', glow: 'shadow-blue-500/20' },
-  };
-  const colors = modeColors[pomodoro.mode];
-
   return (
-    <div className="w-full h-screen bg-[#0f0f1a] text-white flex flex-col overflow-hidden">
-      {/* Top Status Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-black/30 backdrop-blur-sm border-b border-white/5 z-20">
-        <div className="flex items-center gap-3">
-          <div className="text-lg font-bold tracking-tight">
-            <span className="text-red-400">🍅</span> PomoDevice
-          </div>
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
-            device.connectionState === 'connected'
-              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-              : device.connectionState === 'connecting'
-              ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-              : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${
-              device.connectionState === 'connected' ? 'bg-green-400 animate-pulse' :
-              device.connectionState === 'connecting' ? 'bg-yellow-400 animate-pulse' :
-              'bg-gray-400'
-            }`} />
-            {device.connectionState === 'connected' ? device.device.name : 
-             device.connectionState === 'connecting' ? 'Connecting...' : 'Disconnected'}
-          </div>
-        </div>
+    <div className="app-shell">
+      {/* Background gradient */}
+      <div className="bg-gradient" style={{
+        background: pomo.mode === 'focus'
+          ? 'radial-gradient(circle at top left, #fed7aa, transparent 35%), #fff7ed'
+          : pomo.mode === 'shortBreak'
+          ? 'radial-gradient(circle at top left, #bbf7d0, transparent 35%), #f0fdf4'
+          : 'radial-gradient(circle at top left, #bfdbfe, transparent 35%), #eff6ff'
+      }} />
 
-        <div className="flex items-center gap-4 text-xs text-gray-400">
-          {device.connectionState === 'connected' && (
-            <>
-              <span className="flex items-center gap-1">
-                🔋 {Math.round(device.device.battery)}%
-              </span>
-              <span className="flex items-center gap-1">
-                📶 {Math.round(device.device.signalStrength)}%
-              </span>
-              <span className="flex items-center gap-1">
-                🔄 {Math.round(device.device.servoAngle)}°
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex relative overflow-hidden">
-        {/* 3D Scene - Full background */}
-        <div className="absolute inset-0 z-0">
-          <PomodoroScene
-            mode={pomodoro.mode}
-            timerState={pomodoro.timerState}
-            timeLeft={pomodoro.timeLeft}
-            totalTime={pomodoro.totalTime}
-            sessionsCompleted={pomodoro.sessionsCompleted}
-            longBreakInterval={pomodoro.currentActivity.longBreakInterval}
-            servoAngle={pomodoro.servoAngle}
-            device={device.device}
-            connectionState={device.connectionState}
-            onTomatoPress={handleTomatoPress}
-          />
-        </div>
-
-        {/* Floating Control Panel */}
-        <div className="relative z-10 flex flex-col w-full max-w-md mx-auto p-4 pointer-events-none">
-          {/* Timer Display */}
-          <div className="pointer-events-auto mt-4">
-            <div className={`bg-black/40 backdrop-blur-xl rounded-2xl border ${colors.border} p-6 shadow-2xl ${colors.glow}`}>
-              {/* Mode Tabs */}
-              <div className="flex gap-1 mb-4 bg-black/30 rounded-lg p-1">
-                {(['focus', 'shortBreak', 'longBreak'] as TimerMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => pomodoro.switchMode(m)}
-                    className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
-                      pomodoro.mode === m
-                        ? `bg-white/10 ${modeColors[m].text}`
-                        : 'text-gray-500 hover:text-gray-300'
-                    }`}
-                  >
-                    {m === 'focus' ? '🎯 Focus' : m === 'shortBreak' ? '☕ Short' : '🌊 Long'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Time Display */}
-              <div className="text-center mb-4">
-                <div className={`text-6xl font-mono font-bold tracking-tight ${colors.text}`}>
-                  {formatTime(pomodoro.timeLeft)}
-                </div>
-                <div className="text-sm text-gray-400 mt-1">
-                  {pomodoro.currentActivity.emoji} {pomodoro.currentActivity.name}
-                  {pomodoro.timerState === 'running' && ' • Running'}
-                  {pomodoro.timerState === 'paused' && ' • Paused'}
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full h-1.5 bg-white/5 rounded-full mb-4 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ${
-                    pomodoro.mode === 'focus' ? 'bg-red-500' :
-                    pomodoro.mode === 'shortBreak' ? 'bg-green-500' : 'bg-blue-500'
-                  }`}
-                  style={{ width: `${pomodoro.progress * 100}%` }}
-                />
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  onClick={pomodoro.reset}
-                  className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all"
-                  title="Reset"
-                >
-                  ↺
-                </button>
-                <button
-                  onClick={handleTomatoPress}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg ${
-                    pomodoro.timerState === 'running'
-                      ? 'bg-yellow-500/20 border-2 border-yellow-500/50 text-yellow-400'
-                      : pomodoro.mode === 'focus'
-                      ? 'bg-red-500/20 border-2 border-red-500/50 text-red-400'
-                      : pomodoro.mode === 'shortBreak'
-                      ? 'bg-green-500/20 border-2 border-green-500/50 text-green-400'
-                      : 'bg-blue-500/20 border-2 border-blue-500/50 text-blue-400'
-                  }`}
-                  title={pomodoro.timerState === 'running' ? 'Pause' : 'Start'}
-                >
-                  {pomodoro.timerState === 'running' ? (
-                    <span className="text-2xl">⏸</span>
-                  ) : (
-                    <span className="text-2xl">▶</span>
-                  )}
-                </button>
-                <button
-                  onClick={pomodoro.skip}
-                  className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all"
-                  title="Skip"
-                >
-                  ⏭
-                </button>
-              </div>
-
-              {/* Session info */}
-              <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
-                <span>🍅 {pomodoro.sessionsCompleted} sessions</span>
-                <span>🎯 {pomodoro.todaySessions}/{pomodoro.dailyGoal} today</span>
-                {pomodoro.interruptions.length > 0 && (
-                  <span className="text-yellow-400">⚡ {pomodoro.interruptions.length} interruptions</span>
-                )}
-              </div>
-            </div>
+      <main className="app">
+        {/* Left panel */}
+        <section className="left-panel">
+          <div className="logo">
+            <span style={{ color: modeColor }}>●</span> Focus device
           </div>
 
-          {/* Break suggestion (during breaks) */}
-          {pomodoro.mode !== 'focus' && pomodoro.timerState === 'running' && (
-            <div className="pointer-events-auto mt-3 animate-fade-in">
-              <div className="bg-green-900/20 backdrop-blur-xl rounded-xl border border-green-500/20 p-3">
-                <div className="text-xs text-green-400 font-medium mb-1">💡 Break suggestion</div>
-                <div className="text-sm text-green-200">
-                  {breakSuggestion.emoji} {breakSuggestion.text}
-                </div>
-                <div className="text-xs text-green-400/60 mt-1">Get away from screens! 📵</div>
-              </div>
-            </div>
-          )}
+          <h1>Work with<br />intention.</h1>
 
-          {/* Spacer */}
-          <div className="flex-1" />
+          <p className="description">
+            Focus on one meaningful activity at a time. The physical-style
+            tomato dial shows your progress as the timer moves.
+          </p>
 
-          {/* Bottom Tab Navigation */}
-          <div className="pointer-events-auto mb-2">
-            <div className="bg-black/50 backdrop-blur-xl rounded-2xl border border-white/10 p-1.5 flex gap-1">
-              {[
-                { id: 'timer' as const, icon: '🍅', label: 'Timer' },
-                { id: 'tasks' as const, icon: '📋', label: 'Tasks' },
-                { id: 'device' as const, icon: '📡', label: 'Device' },
-                { id: 'stats' as const, icon: '📊', label: 'Stats' },
-              ].map((tab) => (
+          {/* Activity input */}
+          <div className="activity-box">
+            <label htmlFor="activity">What are you working on?</label>
+            <input
+              id="activity"
+              type="text"
+              placeholder="Example: Read chapter 3"
+              value={activityInput}
+              onChange={e => setActivityInput(e.target.value)}
+            />
+          </div>
+
+          {/* Mode buttons */}
+          <div className="mode-buttons">
+            <button
+              className={`mode-button ${pomo.mode === 'focus' ? 'active' : ''}`}
+              style={pomo.mode === 'focus' ? { background: '#ef4444' } : {}}
+              onClick={() => pomo.setMode('focus')}
+            >
+              Focus · {pomo.currentActivity.focusMinutes} min
+            </button>
+            <button
+              className={`mode-button ${pomo.mode === 'shortBreak' ? 'active' : ''}`}
+              style={pomo.mode === 'shortBreak' ? { background: '#22c55e' } : {}}
+              onClick={() => pomo.setMode('shortBreak')}
+            >
+              Short break · {pomo.currentActivity.breakMinutes} min
+            </button>
+            <button
+              className={`mode-button ${pomo.mode === 'longBreak' ? 'active' : ''}`}
+              style={pomo.mode === 'longBreak' ? { background: '#3b82f6' } : {}}
+              onClick={() => pomo.setMode('longBreak')}
+            >
+              Long break · {pomo.currentActivity.longBreakMinutes} min
+            </button>
+          </div>
+
+          {/* Activity selector */}
+          <button
+            className="activity-selector"
+            onClick={() => setShowActivityPicker(!showActivityPicker)}
+          >
+            <span>{pomo.currentActivity.icon} {pomo.currentActivity.name}</span>
+            <span className="chevron">{showActivityPicker ? '▲' : '▼'}</span>
+          </button>
+
+          {showActivityPicker && (
+            <div className="activity-picker">
+              {ACTIVITIES.map(a => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-white/10 text-white'
-                      : 'text-gray-500 hover:text-gray-300'
-                  }`}
+                  key={a.id}
+                  className={`activity-option ${pomo.currentActivity.id === a.id ? 'selected' : ''}`}
+                  onClick={() => {
+                    pomo.setActivity(a);
+                    setShowActivityPicker(false);
+                  }}
                 >
-                  <div className="text-base">{tab.icon}</div>
-                  <div>{tab.label}</div>
+                  <span className="activity-icon">{a.icon}</span>
+                  <div className="activity-info">
+                    <div className="activity-name">{a.name}</div>
+                    <div className="activity-desc">{a.description}</div>
+                  </div>
+                  <div className="activity-time">{a.focusMinutes}/{a.breakMinutes}</div>
                 </button>
               ))}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Side Panel */}
-        <div className="absolute right-0 top-0 bottom-0 w-80 z-10 pointer-events-none flex flex-col p-4 pl-0">
-          <div className="pointer-events-auto flex-1 overflow-y-auto">
-            {/* Activity Selector */}
+          {/* Timer display */}
+          <div className="timer" style={{ color: modeColor }}>
+            {formatTime(pomo.timeLeft)}
+          </div>
+
+          {/* Control buttons */}
+          <div className="control-buttons">
+            <button
+              className="control-button start-button"
+              style={{ background: modeColor, boxShadow: `0 8px 20px ${modeColor}40` }}
+              onClick={handleStart}
+            >
+              {pomo.timerState === 'running' ? 'Pause' : pomo.timerState === 'paused' ? 'Resume' : `Start ${modeLabel.toLowerCase()}`}
+            </button>
+            <button className="control-button reset-button" onClick={pomo.reset}>
+              Reset
+            </button>
+            {pomo.timerState !== 'idle' && (
+              <button className="control-button skip-button" onClick={pomo.skip}>
+                Skip
+              </button>
+            )}
+          </div>
+
+          {/* Interruption tracker */}
+          {pomo.timerState === 'running' && pomo.mode === 'focus' && (
+            <button className="interruption-btn" onClick={pomo.logInterruption}>
+              ⚡ Log interruption ({pomo.interruptions})
+            </button>
+          )}
+
+          {/* Stats */}
+          <div className="stats">
+            <div className="stat">
+              <strong>{pomo.todayStat.sessions}</strong>
+              <span>Sessions today</span>
+            </div>
+            <div className="stat">
+              <strong>{pomo.sessionsCompleted}</strong>
+              <span>Total sessions</span>
+            </div>
+            <div className="stat">
+              <strong>{pomo.currentStreak}🔥</strong>
+              <span>Day streak</span>
+            </div>
+          </div>
+
+          {/* Daily goal progress */}
+          <div className="daily-goal">
+            <div className="daily-goal-header">
+              <span>Daily goal</span>
+              <span>{pomo.todayStat.sessions}/{pomo.settings.dailyGoal}</span>
+            </div>
+            <div className="daily-goal-bar">
+              <div
+                className="daily-goal-fill"
+                style={{
+                  width: `${Math.min(100, (pomo.todayStat.sessions / pomo.settings.dailyGoal) * 100)}%`,
+                  background: modeColor,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Break activity suggestion */}
+          {pomo.mode !== 'focus' && pomo.timerState !== 'running' && (
+            <div className="break-suggestion">
+              💡 Suggested break: <strong>{pomo.breakActivity}</strong>
+            </div>
+          )}
+        </section>
+
+        {/* Right panel - Physical device */}
+        <section className="right-panel">
+          <PhysicalTomato
+            mode={pomo.mode}
+            timerState={pomo.timerState}
+            progress={pomo.progress}
+            servoAngle={pomo.servoAngle}
+            isVibrating={vibrating}
+            onClick={handleTomatoClick}
+          />
+
+          {/* Tabs */}
+          <div className="panel-tabs">
+            <button className={`tab ${activeTab === 'timer' ? 'active' : ''}`} onClick={() => setActiveTab('timer')}>
+              Timer
+            </button>
+            <button className={`tab ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>
+              Tasks
+            </button>
+            <button className={`tab ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
+              Stats
+            </button>
+            <button className={`tab ${activeTab === 'device' ? 'active' : ''}`} onClick={() => setActiveTab('device')}>
+              Device
+            </button>
+          </div>
+
+          {/* Tab content */}
+          <div className="tab-content">
             {activeTab === 'timer' && (
-              <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-3">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                  <span>⚡</span> Activity Mode
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {ACTIVITIES.map((activity) => (
-                    <button
-                      key={activity.id}
-                      onClick={() => pomodoro.switchActivity(activity)}
-                      className={`p-2.5 rounded-xl border text-left transition-all ${
-                        pomodoro.currentActivity.id === activity.id
-                          ? 'bg-white/10 border-white/20'
-                          : 'bg-black/20 border-white/5 hover:bg-white/5 hover:border-white/10'
-                      }`}
-                    >
-                      <div className="text-lg">{activity.emoji}</div>
-                      <div className="text-xs font-medium text-white mt-1">{activity.name}</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">{activity.description}</div>
-                    </button>
+              <div className="timer-info">
+                <div className="info-row">
+                  <span className="info-label">Mode</span>
+                  <span className="info-value" style={{ color: modeColor }}>{modeLabel}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Servo angle</span>
+                  <span className="info-value">{Math.round(pomo.servoAngle)}°</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Progress</span>
+                  <span className="info-value">{Math.round(pomo.progress * 100)}%</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Next long break</span>
+                  <span className="info-value">
+                    in {pomo.settings.longBreakInterval - (pomo.sessionsCompleted % pomo.settings.longBreakInterval)} sessions
+                  </span>
+                </div>
+                <div className="session-dots">
+                  {Array.from({ length: pomo.settings.longBreakInterval }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="session-dot"
+                      style={{
+                        background: i < (pomo.sessionsCompleted % pomo.settings.longBreakInterval)
+                          ? modeColor
+                          : '#e7e5e4'
+                      }}
+                    />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Tasks Panel */}
             {activeTab === 'tasks' && (
-              <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                  <span>📋</span> Today's Tasks
-                </h3>
-
-                {/* Add task */}
-                <div className="mb-3 space-y-2">
+              <div className="tasks-panel">
+                <div className="task-input-row">
                   <input
                     type="text"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
                     placeholder="Add a task..."
-                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-white/20"
+                    value={newTaskName}
+                    onChange={e => setNewTaskName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+                    className="task-input"
                   />
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400">🍅 Estimate:</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={newTaskEstimate}
-                      onChange={(e) => setNewTaskEstimate(Number(e.target.value))}
-                      className="w-16 bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-white/20"
-                    />
-                    <button
-                      onClick={handleAddTask}
-                      className="ml-auto px-3 py-1 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-xs transition-all"
-                    >
-                      Add
-                    </button>
-                  </div>
+                  <select
+                    value={newTaskEstimate}
+                    onChange={e => setNewTaskEstimate(Number(e.target.value))}
+                    className="task-estimate"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                      <option key={n} value={n}>{n}🍅</option>
+                    ))}
+                  </select>
+                  <button className="task-add-btn" onClick={handleAddTask}>+</button>
                 </div>
 
-                {/* Task list */}
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {pomodoro.tasks.length === 0 ? (
-                    <div className="text-center text-gray-500 text-xs py-4">
-                      No tasks yet. Add tasks to track your pomodoros!
+                <div className="task-list">
+                  {pomo.tasks.length === 0 && (
+                    <div className="empty-state">
+                      No tasks yet. Add one to get started!
                     </div>
-                  ) : (
-                    pomodoro.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`p-2.5 rounded-lg border transition-all ${
-                          task.isCompleted
-                            ? 'bg-green-500/5 border-green-500/20'
-                            : 'bg-black/20 border-white/5'
-                        }`}
+                  )}
+                  {pomo.tasks.map(task => (
+                    <div key={task.id} className={`task-item ${task.done ? 'done' : ''}`}>
+                      <button
+                        className="task-check"
+                        onClick={() => pomo.toggleTask(task.id)}
                       >
-                        <div className="flex items-start gap-2">
-                          <button
-                            onClick={() => pomodoro.updateTask(task.id, { isCompleted: !task.isCompleted })}
-                            className={`w-4 h-4 rounded border mt-0.5 flex-shrink-0 ${
-                              task.isCompleted
-                                ? 'bg-green-500 border-green-500'
-                                : 'border-white/20'
-                            }`}
-                          >
-                            {task.isCompleted && <span className="text-[10px]">✓</span>}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-xs font-medium ${task.isCompleted ? 'text-gray-500 line-through' : 'text-white'}`}>
-                              {task.title}
-                            </div>
-                            <div className="flex items-center gap-1 mt-1">
-                              {Array.from({ length: task.estimatedPomodoros }).map((_, i) => (
-                                <span
-                                  key={i}
-                                  className={`text-[10px] ${
-                                    i < task.completedPomodoros ? 'text-red-400' : 'text-gray-600'
-                                  }`}
-                                >
-                                  🍅
-                                </span>
-                              ))}
-                              <span className="text-[10px] text-gray-500 ml-1">
-                                {task.completedPomodoros}/{task.estimatedPomodoros}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => pomodoro.deleteTask(task.id)}
-                            className="text-gray-600 hover:text-red-400 text-xs"
-                          >
-                            ✕
-                          </button>
+                        {task.done ? '✓' : ''}
+                      </button>
+                      <div className="task-info">
+                        <div className="task-name">{task.name}</div>
+                        <div className="task-progress">
+                          {task.completedPomodoros}/{task.estimatedPomodoros} 🍅
                         </div>
                       </div>
-                    ))
-                  )}
+                      <button
+                        className="task-delete"
+                        onClick={() => pomo.deleteTask(task.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 </div>
 
-                {/* Interruption tracker */}
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-medium text-gray-400">⚡ Interruptions</h4>
-                    <button
-                      onClick={() => setShowInterruptionModal(!showInterruptionModal)}
-                      className="text-xs px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded border border-yellow-500/20"
-                    >
-                      + Log
-                    </button>
+                {pomo.tasks.length > 0 && (
+                  <div className="tasks-summary">
+                    Total: {pomo.tasks.reduce((sum, t) => sum + t.estimatedPomodoros, 0)} 🍅 estimated ·{' '}
+                    {pomo.tasks.reduce((sum, t) => sum + t.completedPomodoros, 0)} 🍅 completed
                   </div>
-                  {showInterruptionModal && (
-                    <div className="space-y-2 mb-2">
-                      <input
-                        type="text"
-                        value={interruptionNote}
-                        onChange={(e) => setInterruptionNote(e.target.value)}
-                        placeholder="What interrupted you?"
-                        className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleLogInterruption('internal')}
-                          className="flex-1 text-xs py-1 bg-orange-500/10 text-orange-400 rounded border border-orange-500/20"
-                        >
-                          🧠 Internal
-                        </button>
-                        <button
-                          onClick={() => handleLogInterruption('external')}
-                          className="flex-1 text-xs py-1 bg-purple-500/10 text-purple-400 rounded border border-purple-500/20"
-                        >
-                          📱 External
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {pomodoro.interruptions.length > 0 && (
-                    <div className="space-y-1 max-h-24 overflow-y-auto">
-                      {pomodoro.interruptions.slice(-5).reverse().map((i) => (
-                        <div key={i.id} className="text-[10px] text-gray-500 flex items-center gap-1">
-                          <span>{i.type === 'internal' ? '🧠' : '📱'}</span>
-                          <span className="truncate">{i.note}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             )}
 
-            {/* Device Panel */}
-            {activeTab === 'device' && (
-              <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                  <span>📡</span> Physical Device
-                </h3>
-
-                {/* Connection status */}
-                <div className="mb-4">
-                  {device.connectionState === 'connected' ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Device</span>
-                        <span className="text-xs text-white">{device.device.name}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Firmware</span>
-                        <span className="text-xs text-white">v{device.device.firmware}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Battery</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${
-                                device.device.battery > 20 ? 'bg-green-500' : 'bg-red-500'
-                              }`}
-                              style={{ width: `${device.device.battery}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-white">{Math.round(device.device.battery)}%</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">Signal</span>
-                        <span className="text-xs text-white">{Math.round(device.device.signalStrength)}%</span>
-                      </div>
-
-                      {/* Device status indicators */}
-                      <div className="pt-3 border-t border-white/5 space-y-2">
-                        <div className="text-xs text-gray-400 font-medium">Hardware Status</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-black/30 rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500">Servo</div>
-                            <div className="text-sm font-mono text-white">{Math.round(device.device.servoAngle)}°</div>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500">LED</div>
-                            <div className="flex items-center gap-1">
-                              <div
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: device.device.ledColor }}
-                              />
-                              <span className="text-xs text-white">{Math.round(device.device.ledBrightness * 100)}%</span>
-                            </div>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500">Buzzer</div>
-                            <div className={`text-xs ${device.device.isBuzzerActive ? 'text-yellow-400' : 'text-gray-600'}`}>
-                              {device.device.isBuzzerActive ? '🔊 Active' : '🔇 Off'}
-                            </div>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-2">
-                            <div className="text-[10px] text-gray-500">Vibration</div>
-                            <div className={`text-xs ${device.device.isVibrating ? 'text-purple-400' : 'text-gray-600'}`}>
-                              {device.device.isVibrating ? '📳 Active' : '⚪ Off'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Command log */}
-                      <div className="pt-3 border-t border-white/5">
-                        <div className="text-xs text-gray-400 font-medium mb-2">Command Log</div>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {device.commandLog.slice(0, 10).map((log, i) => (
-                            <div key={i} className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
-                              <span className="text-gray-600">{new Date(log.time).toLocaleTimeString()}</span>
-                              <span className={
-                                log.command.includes('START') ? 'text-green-400' :
-                                log.command === 'PAUSE' ? 'text-yellow-400' :
-                                log.command === 'RESET' ? 'text-red-400' : 'text-gray-400'
-                              }>{log.command}</span>
-                            </div>
-                          ))}
-                          {device.commandLog.length === 0 && (
-                            <div className="text-[10px] text-gray-600">No commands sent yet</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={device.disconnect}
-                        className="w-full mt-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-all"
-                      >
-                        Disconnect Device
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6">
-                      <div className="text-4xl mb-3">📡</div>
-                      <div className="text-sm text-gray-400 mb-4">
-                        {device.connectionState === 'connecting'
-                          ? 'Searching for device...'
-                          : 'No device connected'}
-                      </div>
-                      <button
-                        onClick={device.connect}
-                        disabled={device.connectionState === 'connecting'}
-                        className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg text-sm text-blue-400 transition-all disabled:opacity-50"
-                      >
-                        {device.connectionState === 'connecting' ? 'Connecting...' : 'Connect Device'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Device info */}
-                <div className="pt-3 border-t border-white/5">
-                  <div className="text-xs text-gray-500">
-                    <p className="mb-1">💡 This simulates a physical ESP32 device with:</p>
-                    <ul className="space-y-0.5 text-[10px] text-gray-600">
-                      <li>• SG90 servo motor (rotating dial)</li>
-                      <li>• RGB LED ring (24 LEDs)</li>
-                      <li>• Buzzer for notifications</li>
-                      <li>• Vibration motor</li>
-                      <li>• Wi-Fi/Bluetooth connection</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Stats Panel */}
             {activeTab === 'stats' && (
-              <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 p-4">
-                <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                  <span>📊</span> Statistics
-                </h3>
-
-                {/* Today's progress */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-400">Today's Goal</span>
-                    <span className="text-xs text-white">{pomodoro.todaySessions}/{pomodoro.dailyGoal} 🍅</span>
+              <div className="stats-panel">
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-card-value">{pomo.todayStat.sessions}</div>
+                    <div className="stat-card-label">Today</div>
                   </div>
-                  <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        pomodoro.goalReached ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-red-500 to-orange-400'
-                      }`}
-                      style={{ width: `${Math.min(pomodoro.dailyProgress * 100, 100)}%` }}
-                    />
+                  <div className="stat-card">
+                    <div className="stat-card-value">{pomo.todayStat.focusMinutes}</div>
+                    <div className="stat-card-label">Minutes focused</div>
                   </div>
-                  {pomodoro.goalReached && (
-                    <div className="text-xs text-green-400 mt-1 text-center">🎉 Goal reached!</div>
-                  )}
-                </div>
-
-                {/* Daily goal setting */}
-                <div className="mb-4 flex items-center gap-2">
-                  <label className="text-xs text-gray-400">Daily goal:</label>
-                  <input
-                    type="range"
-                    min={1}
-                    max={16}
-                    value={pomodoro.dailyGoal}
-                    onChange={(e) => pomodoro.setDailyGoal(Number(e.target.value))}
-                    className="flex-1 accent-red-500"
-                  />
-                  <span className="text-xs text-white w-6">{pomodoro.dailyGoal}</span>
-                </div>
-
-                {/* Stats grid */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-[10px] text-gray-500">Today's Focus</div>
-                    <div className="text-lg font-bold text-white">{pomodoro.todayFocusMinutes}<span className="text-xs text-gray-400">min</span></div>
+                  <div className="stat-card">
+                    <div className="stat-card-value">{pomo.currentStreak}</div>
+                    <div className="stat-card-label">Day streak</div>
                   </div>
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-[10px] text-gray-500">All-Time Sessions</div>
-                    <div className="text-lg font-bold text-white">{pomodoro.stats.totalSessions}</div>
-                  </div>
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-[10px] text-gray-500">Total Focus</div>
-                    <div className="text-lg font-bold text-white">{Math.round(pomodoro.stats.totalFocusMinutes / 60)}<span className="text-xs text-gray-400">hrs</span></div>
-                  </div>
-                  <div className="bg-black/30 rounded-lg p-3">
-                    <div className="text-[10px] text-gray-500">Current Streak</div>
-                    <div className="text-lg font-bold text-white">{pomodoro.stats.currentStreak}<span className="text-xs text-gray-400"> days</span></div>
+                  <div className="stat-card">
+                    <div className="stat-card-value">{pomo.todayStat.interruptions}</div>
+                    <div className="stat-card-label">Interruptions</div>
                   </div>
                 </div>
 
-                {/* History chart (simple) */}
-                <div className="pt-3 border-t border-white/5">
-                  <div className="text-xs text-gray-400 font-medium mb-2">Last 7 Days</div>
-                  <div className="flex items-end gap-1 h-20">
+                {/* 7-day chart */}
+                <div className="chart-section">
+                  <h3>Last 7 days</h3>
+                  <div className="chart">
                     {Array.from({ length: 7 }).map((_, i) => {
-                      const date = new Date();
-                      date.setDate(date.getDate() - (6 - i));
-                      const dateStr = date.toISOString().split('T')[0];
-                      const dayData = pomodoro.stats.history.find(h => h.date === dateStr);
-                      const sessions = dayData?.sessions || 0;
-                      const height = pomodoro.dailyGoal > 0 ? Math.min((sessions / pomodoro.dailyGoal) * 100, 100) : 0;
+                      const d = new Date();
+                      d.setDate(d.getDate() - (6 - i));
+                      const key = d.toISOString().split('T')[0];
+                      const stat = pomo.dailyStats.find(s => s.date === key);
+                      const sessions = stat?.sessions || 0;
+                      const maxSessions = Math.max(pomo.settings.dailyGoal, ...pomo.dailyStats.map(s => s.sessions), 1);
+                      const height = (sessions / maxSessions) * 100;
                       return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div className="w-full flex flex-col justify-end h-16">
-                            <div
-                              className={`w-full rounded-t transition-all ${
-                                sessions >= pomodoro.dailyGoal ? 'bg-green-500' : 'bg-red-500/50'
-                              }`}
-                              style={{ height: `${height}%`, minHeight: sessions > 0 ? '4px' : '0' }}
-                            />
+                        <div key={key} className="chart-bar-container">
+                          <div
+                            className="chart-bar"
+                            style={{
+                              height: `${height}%`,
+                              background: sessions >= pomo.settings.dailyGoal ? '#22c55e' : modeColor,
+                            }}
+                          />
+                          <div className="chart-label">
+                            {d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2)}
                           </div>
-                          <div className="text-[8px] text-gray-600">
-                            {date.toLocaleDateString('en', { weekday: 'short' }).charAt(0)}
-                          </div>
+                          <div className="chart-value">{sessions}</div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Pomodoro rules reminder */}
-                <div className="mt-4 pt-3 border-t border-white/5">
-                  <div className="text-xs text-gray-400 font-medium mb-2">📜 Pomodoro Rules</div>
-                  <div className="space-y-1 text-[10px] text-gray-500">
-                    <p>• Break tasks &gt; 4 pomodoros into smaller steps</p>
-                    <p>• Combine small tasks into one session</p>
-                    <p>• Once started, a pomodoro cannot be split</p>
-                    <p>• Track interruptions and improve next time</p>
-                    <p>• Use extra time for overlearning</p>
+                {/* Recent sessions */}
+                <div className="recent-sessions">
+                  <h3>Recent sessions</h3>
+                  {pomo.sessionHistory.length === 0 && (
+                    <div className="empty-state">No sessions yet</div>
+                  )}
+                  {pomo.sessionHistory.slice(0, 5).map(s => (
+                    <div key={s.id} className="session-row">
+                      <span className="session-mode" style={{
+                        color: s.mode === 'focus' ? '#ef4444' : s.mode === 'shortBreak' ? '#22c55e' : '#3b82f6'
+                      }}>
+                        {s.mode === 'focus' ? '🍅' : s.mode === 'shortBreak' ? '☕' : '🌊'}
+                      </span>
+                      <span className="session-activity">{s.activity}</span>
+                      <span className="session-time">
+                        {Math.round(s.duration / 60)} min
+                        {s.interruptions > 0 && <span className="session-interruptions"> · {s.interruptions}⚡</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'device' && (
+              <div className="device-panel">
+                <div className="device-status">
+                  <div className="device-indicator connected">
+                    <span className="dot" />
+                    <span>ESP32 Simulator — Connected</span>
+                  </div>
+                  <div className="device-details">
+                    <div className="detail-row">
+                      <span>Firmware</span>
+                      <span>v1.2.0</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Servo position</span>
+                      <span>{Math.round(pomo.servoAngle)}°</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>LED state</span>
+                      <span style={{ color: modeColor }}>● {modeLabel}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Battery</span>
+                      <span>87%</span>
+                    </div>
+                    <div className="detail-row">
+                      <span>Signal</span>
+                      <span>Strong</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="device-commands">
+                  <h3>Commands sent</h3>
+                  <div className="command-log">
+                    <div className="command">
+                      <span className="cmd-time">now</span>
+                      <span className="cmd-text">SYNC_STATE → servo:{Math.round(pomo.servoAngle)}° led:{modeColor}</span>
+                    </div>
+                    <div className="command">
+                      <span className="cmd-time">-1s</span>
+                      <span className="cmd-text">SET_MODE → {pomo.mode}</span>
+                    </div>
+                    {pomo.timerState === 'running' && (
+                      <div className="command">
+                        <span className="cmd-time">-2s</span>
+                        <span className="cmd-text">START_TIMER → {Math.round(pomo.totalTime / 60)}min</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="device-info">
+                  <h3>About the physical device</h3>
+                  <p>
+                    This app simulates a physical ESP32-based pomodoro device.
+                    In a real implementation, the servo would physically rotate
+                    the dial as the timer progresses, and LEDs would indicate
+                    the current mode.
+                  </p>
+                  <div className="hardware-list">
+                    <div className="hw-item">🔧 ESP32 microcontroller</div>
+                    <div className="hw-item">⚙️ SG90 servo motor</div>
+                    <div className="hw-item">💡 RGB LED ring</div>
+                    <div className="hw-item">🔔 Buzzer / vibration</div>
+                    <div className="hw-item">🔘 Push button</div>
                   </div>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Bottom hint */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 text-[10px] text-gray-600 pointer-events-none">
-        Click the 🍅 tomato to {pomodoro.timerState === 'running' ? 'pause' : 'start'} • Drag to rotate view • Scroll to zoom
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
