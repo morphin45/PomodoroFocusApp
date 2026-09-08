@@ -1,24 +1,82 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
+export type TimerState = 'idle' | 'running' | 'paused';
+export type ActivityType = 'study' | 'deepWork' | 'reading' | 'exercise' | 'breathing' | 'custom';
 
-export interface PomodoroSettings {
+export interface Activity {
+  id: ActivityType;
+  name: string;
+  emoji: string;
+  description: string;
   focusDuration: number;
   shortBreakDuration: number;
   longBreakDuration: number;
   longBreakInterval: number;
-  dailyGoal: number;
 }
 
-export interface PomodoroStats {
-  sessionsCompleted: number;
-  totalFocusTime: number;
-  lastSessionDate: string;
-  currentStreak: number;
-  longestStreak: number;
-  interruptions: number;
-  history: { date: string; sessions: number; focusMinutes: number }[];
-}
+export const ACTIVITIES: Activity[] = [
+  {
+    id: 'study',
+    name: 'Study',
+    emoji: '📚',
+    description: '25 min focus, 5 min break',
+    focusDuration: 25,
+    shortBreakDuration: 5,
+    longBreakDuration: 15,
+    longBreakInterval: 4,
+  },
+  {
+    id: 'deepWork',
+    name: 'Deep Work',
+    emoji: '🧠',
+    description: '50 min focus, 10 min break',
+    focusDuration: 50,
+    shortBreakDuration: 10,
+    longBreakDuration: 30,
+    longBreakInterval: 3,
+  },
+  {
+    id: 'reading',
+    name: 'Reading',
+    emoji: '📖',
+    description: '30 min focus, 5 min break',
+    focusDuration: 30,
+    shortBreakDuration: 5,
+    longBreakDuration: 20,
+    longBreakInterval: 4,
+  },
+  {
+    id: 'exercise',
+    name: 'Exercise',
+    emoji: '🏋️',
+    description: '40 min activity, 10 min rest',
+    focusDuration: 40,
+    shortBreakDuration: 10,
+    longBreakDuration: 20,
+    longBreakInterval: 3,
+  },
+  {
+    id: 'breathing',
+    name: 'Breathing',
+    emoji: '🧘',
+    description: '5 min guided, 1 min rest',
+    focusDuration: 5,
+    shortBreakDuration: 1,
+    longBreakDuration: 3,
+    longBreakInterval: 5,
+  },
+  {
+    id: 'custom',
+    name: 'Custom',
+    emoji: '⚙️',
+    description: 'Set your own durations',
+    focusDuration: 25,
+    shortBreakDuration: 5,
+    longBreakDuration: 15,
+    longBreakInterval: 4,
+  },
+];
 
 export interface Task {
   id: string;
@@ -34,41 +92,40 @@ export interface Interruption {
   timestamp: number;
   type: 'internal' | 'external';
   note: string;
-  sessionId: string;
 }
 
-export interface DailyPlan {
+export interface DailyStats {
   date: string;
-  targetPomodoros: number;
-  overflowBuffer: number;
-  completedPomodoros: number;
+  sessions: number;
+  focusMinutes: number;
+  interruptions: number;
 }
 
-const DEFAULT_SETTINGS: PomodoroSettings = {
-  focusDuration: 25,
-  shortBreakDuration: 5,
-  longBreakDuration: 15,
-  longBreakInterval: 4,
-  dailyGoal: 8,
-};
+export interface PomodoroStats {
+  currentStreak: number;
+  longestStreak: number;
+  totalSessions: number;
+  totalFocusMinutes: number;
+  history: DailyStats[];
+}
 
-const BREAK_ACTIVITIES = [
-  '🚶 Take a short walk',
-  '🧘 Do some stretching',
-  '💧 Drink some water',
-  '👀 Look out the window (20-20-20 rule)',
-  '🌿 Step outside for fresh air',
-  '🎵 Listen to a short song',
-  '📖 Read a page of a book',
-  '🤸 Do some light exercises',
-  '🧹 Tidy up your space',
-  '🍎 Grab a healthy snack',
-  '😌 Practice deep breathing',
-  '🐦 Watch birds or nature',
-];
+export interface PomodoroState {
+  timerState: TimerState;
+  mode: TimerMode;
+  timeLeft: number;
+  totalTime: number;
+  sessionsCompleted: number;
+  currentActivity: Activity;
+  tasks: Task[];
+  interruptions: Interruption[];
+  stats: PomodoroStats;
+  todaySessions: number;
+  todayFocusMinutes: number;
+  dailyGoal: number;
+}
 
 function getTodayString(): string {
-  return new Date().toDateString();
+  return new Date().toISOString().split('T')[0];
 }
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -80,168 +137,158 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   }
 }
 
-function playNotificationSound() {
+function playSound(type: 'complete' | 'break' | 'click') {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const notes = [523.25, 659.25, 783.99];
-    notes.forEach((freq, i) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.frequency.value = freq;
-      oscillator.type = 'sine';
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + i * 0.15);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.15 + 0.4);
-      oscillator.start(audioContext.currentTime + i * 0.15);
-      oscillator.stop(audioContext.currentTime + i * 0.15 + 0.4);
-    });
-  } catch { /* ignore audio errors */ }
-}
-
-export function getRandomBreakActivity(): string {
-  return BREAK_ACTIVITIES[Math.floor(Math.random() * BREAK_ACTIVITIES.length)];
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (type === 'complete') {
+      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.3);
+        osc.start(ctx.currentTime + i * 0.15);
+        osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+      });
+    } else if (type === 'break') {
+      [783.99, 659.25].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.2 + 0.3);
+        osc.start(ctx.currentTime + i * 0.2);
+        osc.stop(ctx.currentTime + i * 0.2 + 0.3);
+      });
+    } else {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 1000;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    }
+  } catch { /* ignore */ }
 }
 
 export function usePomodoro() {
-  const [settings, setSettings] = useState<PomodoroSettings>(
-    () => loadFromStorage('pomodoro-settings', DEFAULT_SETTINGS)
-  );
+  const [timerState, setTimerState] = useState<TimerState>('idle');
   const [mode, setMode] = useState<TimerMode>('focus');
-  const [timeLeft, setTimeLeft] = useState(settings.focusDuration * 60);
-  const [isRunning, setIsRunning] = useState(false);
+  const [currentActivity, setCurrentActivity] = useState<Activity>(
+    () => loadFromStorage('pomodoro-activity', ACTIVITIES[0])
+  );
+  const [timeLeft, setTimeLeft] = useState(currentActivity.focusDuration * 60);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
-  const [currentSessionId, setCurrentSessionId] = useState<string>(Date.now().toString());
-  const intervalRef = useRef<number | null>(null);
-
-  // Tasks
   const [tasks, setTasks] = useState<Task[]>(() => loadFromStorage('pomodoro-tasks', []));
-
-  // Interruptions (today only)
-  const [interruptions, setInterruptions] = useState<Interruption[]>(() => {
-    const saved = loadFromStorage<Interruption[]>('pomodoro-interruptions', []);
-    const today = getTodayString();
-    return saved.filter(i => new Date(i.timestamp).toDateString() === today);
-  });
-
-  // Daily plan
-  const [dailyPlan, setDailyPlan] = useState<DailyPlan>(() => {
-    const saved = loadFromStorage<DailyPlan | null>('pomodoro-daily-plan', null);
-    const today = getTodayString();
-    if (saved && saved.date === today) return saved;
-    return {
-      date: today,
-      targetPomodoros: settings.dailyGoal,
-      overflowBuffer: 2,
-      completedPomodoros: 0,
-    };
-  });
-
-  // Stats
-  const [stats, setStats] = useState<PomodoroStats>(() => {
-    const saved = loadFromStorage<PomodoroStats | null>('pomodoro-stats', null);
-    const today = getTodayString();
-    const defaultStats: PomodoroStats = {
-      sessionsCompleted: 0,
-      totalFocusTime: 0,
-      lastSessionDate: today,
+  const [interruptions, setInterruptions] = useState<Interruption[]>([]);
+  const [dailyGoal, setDailyGoal] = useState(() => loadFromStorage('pomodoro-daily-goal', 8));
+  const [stats, setStats] = useState<PomodoroStats>(() =>
+    loadFromStorage('pomodoro-stats', {
       currentStreak: 0,
       longestStreak: 0,
-      interruptions: 0,
+      totalSessions: 0,
+      totalFocusMinutes: 0,
       history: [],
-    };
-    if (!saved) return defaultStats;
-    if (saved.lastSessionDate === today) return saved;
-    // New day - keep streaks and history, reset daily counters
-    return {
-      ...saved,
-      sessionsCompleted: 0,
-      totalFocusTime: 0,
-      interruptions: 0,
-    };
-  });
+    })
+  );
 
-  // Break activity suggestion
-  const [breakActivity, setBreakActivity] = useState<string>(getRandomBreakActivity());
-
-  // Save to localStorage
-  useEffect(() => { localStorage.setItem('pomodoro-settings', JSON.stringify(settings)); }, [settings]);
-  useEffect(() => { localStorage.setItem('pomodoro-stats', JSON.stringify(stats)); }, [stats]);
-  useEffect(() => { localStorage.setItem('pomodoro-tasks', JSON.stringify(tasks)); }, [tasks]);
-  useEffect(() => { localStorage.setItem('pomodoro-interruptions', JSON.stringify(interruptions)); }, [interruptions]);
-  useEffect(() => { localStorage.setItem('pomodoro-daily-plan', JSON.stringify(dailyPlan)); }, [dailyPlan]);
+  const intervalRef = useRef<number | null>(null);
+  const sessionStartTimeRef = useRef<number | null>(null);
 
   const totalTime = mode === 'focus'
-    ? settings.focusDuration * 60
+    ? currentActivity.focusDuration * 60
     : mode === 'shortBreak'
-    ? settings.shortBreakDuration * 60
-    : settings.longBreakDuration * 60;
+    ? currentActivity.shortBreakDuration * 60
+    : currentActivity.longBreakDuration * 60;
 
-  const handleTimerComplete = useCallback(() => {
-    playNotificationSound();
+  // Save to localStorage
+  useEffect(() => { localStorage.setItem('pomodoro-activity', JSON.stringify(currentActivity)); }, [currentActivity]);
+  useEffect(() => { localStorage.setItem('pomodoro-tasks', JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem('pomodoro-stats', JSON.stringify(stats)); }, [stats]);
+  useEffect(() => { localStorage.setItem('pomodoro-daily-goal', JSON.stringify(dailyGoal)); }, [dailyGoal]);
 
+  // Today's stats
+  const today = getTodayString();
+  const todayHistory = stats.history.find(h => h.date === today);
+  const todaySessions = todayHistory?.sessions || 0;
+  const todayFocusMinutes = todayHistory?.focusMinutes || 0;
+
+  // Timer interval
+  useEffect(() => {
+    if (timerState === 'running') {
+      intervalRef.current = window.setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            handleSessionComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [timerState]);
+
+  const handleSessionComplete = useCallback(() => {
     if (mode === 'focus') {
-      const newSessions = sessionsCompleted + 1;
-      setSessionsCompleted(newSessions);
+      playSound('complete');
+      const newCount = sessionsCompleted + 1;
+      setSessionsCompleted(newCount);
 
       // Update stats
-      setStats((prev) => {
-        const today = getTodayString();
-        const yesterday = new Date(Date.now() - 86400000).toDateString();
-        let newStreak = prev.currentStreak;
-
-        if (prev.lastSessionDate === yesterday && prev.currentStreak === 0) {
-          newStreak = 1;
-        } else if (prev.lastSessionDate !== today && prev.lastSessionDate !== yesterday) {
-          newStreak = 1;
-        } else if (prev.lastSessionDate === today && prev.sessionsCompleted === 0) {
-          newStreak = prev.currentStreak + 1;
-        }
-
-        // Update history
-        const historyEntry = prev.history.find(h => h.date === today);
+      setStats(prev => {
+        const todayStr = getTodayString();
+        const existingToday = prev.history.find(h => h.date === todayStr);
         let newHistory = [...prev.history];
-        if (historyEntry) {
+        if (existingToday) {
           newHistory = newHistory.map(h =>
-            h.date === today
-              ? { ...h, sessions: h.sessions + 1, focusMinutes: h.focusMinutes + settings.focusDuration }
+            h.date === todayStr
+              ? { ...h, sessions: h.sessions + 1, focusMinutes: h.focusMinutes + currentActivity.focusDuration }
               : h
           );
         } else {
-          newHistory.push({ date: today, sessions: 1, focusMinutes: settings.focusDuration });
+          newHistory.push({
+            date: todayStr,
+            sessions: 1,
+            focusMinutes: currentActivity.focusDuration,
+            interruptions: 0,
+          });
         }
-        // Keep last 30 days
         newHistory = newHistory.slice(-30);
 
         return {
-          sessionsCompleted: prev.sessionsCompleted + 1,
-          totalFocusTime: prev.totalFocusTime + settings.focusDuration,
-          lastSessionDate: today,
-          currentStreak: newStreak,
-          longestStreak: Math.max(newStreak, prev.longestStreak),
-          interruptions: prev.interruptions,
+          ...prev,
+          totalSessions: prev.totalSessions + 1,
+          totalFocusMinutes: prev.totalFocusMinutes + currentActivity.focusDuration,
           history: newHistory,
         };
       });
 
-      // Update daily plan
-      setDailyPlan(prev => ({
-        ...prev,
-        completedPomodoros: prev.completedPomodoros + 1,
-      }));
-
-      // Update task progress - advance the first active task
-      setTasks((prev) => {
+      // Update task progress
+      setTasks(prev => {
         const activeTask = prev.find(t => !t.isCompleted && t.completedPomodoros < t.estimatedPomodoros);
         if (activeTask) {
           return prev.map(t => {
             if (t.id === activeTask.id) {
               const newCompleted = t.completedPomodoros + 1;
-              return {
-                ...t,
-                completedPomodoros: newCompleted,
-                isCompleted: newCompleted >= t.estimatedPomodoros,
-              };
+              return { ...t, completedPomodoros: newCompleted, isCompleted: newCompleted >= t.estimatedPomodoros };
             }
             return t;
           });
@@ -250,177 +297,153 @@ export function usePomodoro() {
       });
 
       // Switch to break
-      if (newSessions % settings.longBreakInterval === 0) {
+      if (newCount % currentActivity.longBreakInterval === 0) {
         setMode('longBreak');
-        setTimeLeft(settings.longBreakDuration * 60);
+        setTimeLeft(currentActivity.longBreakDuration * 60);
       } else {
         setMode('shortBreak');
-        setTimeLeft(settings.shortBreakDuration * 60);
+        setTimeLeft(currentActivity.shortBreakDuration * 60);
       }
-      setBreakActivity(getRandomBreakActivity());
+      setTimerState('running'); // Auto-start break
     } else {
-      // Switch back to focus
+      playSound('break');
       setMode('focus');
-      setTimeLeft(settings.focusDuration * 60);
-      setCurrentSessionId(Date.now().toString());
+      setTimeLeft(currentActivity.focusDuration * 60);
+      setTimerState('idle'); // Don't auto-start focus
     }
-  }, [mode, sessionsCompleted, settings]);
+    sessionStartTimeRef.current = null;
+  }, [mode, sessionsCompleted, currentActivity]);
 
-  // Timer interval
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = window.setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (timeLeft === 0 && isRunning) {
-      setIsRunning(false);
-    }
+  // Actions
+  const start = useCallback(() => {
+    playSound('click');
+    setTimerState('running');
+    sessionStartTimeRef.current = Date.now();
+  }, []);
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isRunning, handleTimerComplete]);
+  const pause = useCallback(() => {
+    playSound('click');
+    setTimerState('paused');
+  }, []);
 
-  const start = () => setIsRunning(true);
-  const pause = () => setIsRunning(false);
+  const resume = useCallback(() => {
+    playSound('click');
+    setTimerState('running');
+  }, []);
 
-  const reset = () => {
-    setIsRunning(false);
+  const reset = useCallback(() => {
+    playSound('click');
+    setTimerState('idle');
     setTimeLeft(totalTime);
-  };
+    sessionStartTimeRef.current = null;
+  }, [totalTime]);
 
-  const skip = () => {
-    setIsRunning(false);
-    handleTimerComplete();
-  };
+  const skip = useCallback(() => {
+    playSound('click');
+    setTimerState('idle');
+    handleSessionComplete();
+  }, [handleSessionComplete]);
 
-  const updateSettings = (newSettings: Partial<PomodoroSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
-    if (!isRunning) {
-      if (mode === 'focus' && newSettings.focusDuration) {
-        setTimeLeft(newSettings.focusDuration * 60);
-      } else if (mode === 'shortBreak' && newSettings.shortBreakDuration) {
-        setTimeLeft(newSettings.shortBreakDuration * 60);
-      } else if (mode === 'longBreak' && newSettings.longBreakDuration) {
-        setTimeLeft(newSettings.longBreakDuration * 60);
-      }
-    }
-  };
+  const toggleTimer = useCallback(() => {
+    if (timerState === 'idle') start();
+    else if (timerState === 'running') pause();
+    else if (timerState === 'paused') resume();
+  }, [timerState, start, pause, resume]);
 
-  const switchMode = (newMode: TimerMode) => {
-    setIsRunning(false);
+  const switchActivity = useCallback((activity: Activity) => {
+    setCurrentActivity(activity);
+    setTimerState('idle');
+    setMode('focus');
+    setSessionsCompleted(0);
+    setTimeLeft(activity.focusDuration * 60);
+    sessionStartTimeRef.current = null;
+  }, []);
+
+  const switchMode = useCallback((newMode: TimerMode) => {
+    setTimerState('idle');
     setMode(newMode);
-    if (newMode === 'focus') setTimeLeft(settings.focusDuration * 60);
-    else if (newMode === 'shortBreak') setTimeLeft(settings.shortBreakDuration * 60);
-    else setTimeLeft(settings.longBreakDuration * 60);
-  };
+    if (newMode === 'focus') setTimeLeft(currentActivity.focusDuration * 60);
+    else if (newMode === 'shortBreak') setTimeLeft(currentActivity.shortBreakDuration * 60);
+    else setTimeLeft(currentActivity.longBreakDuration * 60);
+    sessionStartTimeRef.current = null;
+  }, [currentActivity]);
 
   // Task management
-  const addTask = (title: string, estimatedPomodoros: number) => {
+  const addTask = useCallback((title: string, estimatedPomodoros: number) => {
     if (!title.trim()) return;
-    const newTask: Task = {
+    setTasks(prev => [...prev, {
       id: Date.now().toString(),
       title: title.trim(),
       estimatedPomodoros,
       completedPomodoros: 0,
       isCompleted: false,
       createdAt: Date.now(),
-    };
-    setTasks((prev) => [...prev, newTask]);
-  };
+    }]);
+  }, []);
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks((prev) => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-  };
+  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }, []);
 
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter(t => t.id !== id));
-  };
-
-  const reorderTasks = (fromIndex: number, toIndex: number) => {
-    setTasks(prev => {
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
-      return updated;
-    });
-  };
+  const deleteTask = useCallback((id: string) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   // Interruption tracking
-  const logInterruption = (type: 'internal' | 'external', note: string) => {
-    const newInterruption: Interruption = {
+  const logInterruption = useCallback((type: 'internal' | 'external', note: string) => {
+    setInterruptions(prev => [...prev, {
       id: Date.now().toString(),
       timestamp: Date.now(),
       type,
       note,
-      sessionId: currentSessionId,
-    };
-    setInterruptions((prev) => [...prev, newInterruption]);
-    setStats((prev) => ({ ...prev, interruptions: prev.interruptions + 1 }));
-  };
+    }]);
+  }, []);
 
-  const clearInterruptions = () => {
+  const clearInterruptions = useCallback(() => {
     setInterruptions([]);
-    setStats((prev) => ({ ...prev, interruptions: 0 }));
-  };
+  }, []);
 
-  // Daily plan management
-  const updateDailyPlan = (updates: Partial<DailyPlan>) => {
-    setDailyPlan(prev => ({ ...prev, ...updates }));
-  };
+  // Progress calculation
+  const progress = totalTime > 0 ? 1 - timeLeft / totalTime : 0;
+  const servoAngle = 10 + progress * 160; // 10° to 170°
 
-  const resetDailyPlan = () => {
-    setDailyPlan({
-      date: getTodayString(),
-      targetPomodoros: settings.dailyGoal,
-      overflowBuffer: 2,
-      completedPomodoros: 0,
-    });
-  };
-
-  // Computed values
-  const todayProgress = dailyPlan.targetPomodoros > 0
-    ? Math.min(dailyPlan.completedPomodoros / dailyPlan.targetPomodoros, 1)
-    : 0;
-
-  const goalReached = dailyPlan.completedPomodoros >= dailyPlan.targetPomodoros;
-
-  const todayHistory = stats.history.find(h => h.date === getTodayString());
+  // Daily goal progress
+  const dailyProgress = dailyGoal > 0 ? Math.min(todaySessions / dailyGoal, 1) : 0;
+  const goalReached = todaySessions >= dailyGoal;
 
   return {
+    // State
+    timerState,
     mode,
     timeLeft,
     totalTime,
-    isRunning,
+    progress,
+    servoAngle,
     sessionsCompleted,
-    stats,
-    settings,
+    currentActivity,
     tasks,
     interruptions,
-    dailyPlan,
-    breakActivity,
-    todayProgress,
+    stats,
+    todaySessions,
+    todayFocusMinutes,
+    dailyGoal,
+    dailyProgress,
     goalReached,
-    todayHistory,
+
+    // Actions
     start,
     pause,
+    resume,
     reset,
     skip,
-    updateSettings,
+    toggleTimer,
+    switchActivity,
     switchMode,
     addTask,
     updateTask,
     deleteTask,
-    reorderTasks,
     logInterruption,
     clearInterruptions,
-    updateDailyPlan,
-    resetDailyPlan,
+    setDailyGoal,
   };
 }
