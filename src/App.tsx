@@ -626,7 +626,7 @@ export default function App() {
         </div>
 
         <div
-          className="timer-ring"
+          className={`timer-ring ${state.isRunning ? 'running' : ''}`}
           style={{
             background: `conic-gradient(${color} ${progress}deg, #f5e8e3 ${progress}deg)`,
           }}
@@ -666,7 +666,9 @@ export default function App() {
               </svg>
             </div>
             <div className="phase">{LABELS[state.mode]}</div>
-            <div className="timer">{formatTime(state.timeLeft)}</div>
+            <div className={`timer ${state.isRunning ? 'running' : ''}`}>
+              {formatTime(state.timeLeft)}
+            </div>
             <div className="message">{getMessage()}</div>
           </div>
         </div>
@@ -685,7 +687,7 @@ export default function App() {
 
         <div className="controls">
           <button
-            className="start"
+            className={`start ${state.isRunning ? 'running' : ''}`}
             onClick={state.isRunning ? pauseTimer : startTimer}
             style={{ background: color }}
           >
