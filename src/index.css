@@ -160,6 +160,269 @@ select {
   outline-offset: 2px;
 }
 
+.theme-toggle {
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover .theme-icon {
+  transform: rotate(20deg);
+}
+
+/* Dark Mode Styles */
+body[data-theme="dark"] {
+  --background: #1a1a1a;
+  --background-dark: #0d0d0d;
+  --card: rgba(30, 30, 30, 0.95);
+  --text: #e8e8e8;
+  --muted: #8a8a8a;
+  --border: rgba(255, 255, 255, 0.1);
+  --red: #f05252;
+  --red-dark: #d83d42;
+  --red-light: #3d1f1f;
+  --green: #68b879;
+  --blue: #6698f5;
+  --shadow: 0 25px 70px rgba(0, 0, 0, 0.5);
+}
+
+body[data-theme="dark"] {
+  background: 
+    radial-gradient(circle at 10% 0%, #2a1a1a 0, transparent 30%),
+    radial-gradient(circle at 100% 100%, #1a1a2a 0, transparent 32%),
+    var(--background);
+}
+
+body[data-theme="dark"] .icon-button {
+  background: linear-gradient(135deg, rgba(40, 40, 40, 0.9) 0%, rgba(30, 30, 30, 0.7) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .icon-button:hover {
+  background: linear-gradient(135deg, rgba(50, 50, 50, 1) 0%, rgba(40, 40, 40, 0.9) 100%);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="dark"] .card {
+  background: var(--card);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow);
+}
+
+body[data-theme="dark"] .tabs {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+}
+
+body[data-theme="dark"] .tab {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .technique-box {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .technique-box select {
+  background: #1a1a1a;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body[data-theme="dark"] .task-input {
+  background: #1a1a1a;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body[data-theme="dark"] .task-input:focus {
+  background: #222;
+}
+
+body[data-theme="dark"] .secondary {
+  background: #2a2a2a;
+  color: var(--text);
+}
+
+body[data-theme="dark"] .secondary:hover {
+  background: #333;
+}
+
+body[data-theme="dark"] .skip-btn {
+  background: #2a2a2a;
+  color: var(--text);
+}
+
+body[data-theme="dark"] .skip-btn:hover {
+  background: #333;
+}
+
+body[data-theme="dark"] .guide {
+  background: #1f1f1f;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .tip {
+  background: #2a1a1a;
+  color: #ffb3b3;
+}
+
+body[data-theme="dark"] .nav-tabs {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+}
+
+body[data-theme="dark"] .nav-tab {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .nav-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .task-item {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .task-item:hover {
+  border-color: rgba(240, 82, 82, 0.3);
+}
+
+body[data-theme="dark"] .task-item.done {
+  background: #151515;
+}
+
+body[data-theme="dark"] .delete-task-btn {
+  background: #2a2a2a;
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .delete-task-btn:hover {
+  background: #3d1f1f;
+  color: var(--red);
+}
+
+body[data-theme="dark"] .tasks-summary,
+body[data-theme="dark"] .stat-card,
+body[data-theme="dark"] .weekly-chart,
+body[data-theme="dark"] .goal-progress,
+body[data-theme="dark"] .interruption-stats,
+body[data-theme="dark"] .calendar-grid,
+body[data-theme="dark"] .recent-sessions {
+  background: linear-gradient(135deg, #1f1f1f 0%, #1a1a1a 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .session-item {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .session-item:hover {
+  border-color: rgba(240, 82, 82, 0.3);
+}
+
+body[data-theme="dark"] .session-interruptions {
+  background: #3d1f1f;
+  color: #ffb3b3;
+}
+
+body[data-theme="dark"] .calendar-day.level-0 {
+  background: #2a2a2a;
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .calendar-day.level-1 {
+  background: rgba(240, 82, 82, 0.3);
+  color: #ffb3b3;
+}
+
+body[data-theme="dark"] .calendar-day.level-2 {
+  background: rgba(240, 82, 82, 0.5);
+  color: white;
+}
+
+body[data-theme="dark"] .empty-state {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .timer-ring::before {
+  background: #1a1a1a;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+body[data-theme="dark"] .add-task-btn {
+  box-shadow: 0 4px 12px rgba(240, 82, 82, 0.4);
+}
+
+body[data-theme="dark"] .export-btn {
+  background: #1a1a1a;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body[data-theme="dark"] .export-btn:hover {
+  border-color: var(--red);
+  box-shadow: 0 4px 12px rgba(240, 82, 82, 0.3);
+}
+
+body[data-theme="dark"] .log-interruption-btn {
+  background: #1a1a1a;
+  color: var(--red);
+  border-color: var(--red);
+}
+
+body[data-theme="dark"] .log-interruption-btn:hover {
+  background: var(--red);
+  color: white;
+}
+
+body[data-theme="dark"] .goal-input,
+body[data-theme="dark"] .duration-input input {
+  background: #1a1a1a;
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+body[data-theme="dark"] .custom-durations {
+  background: #151515;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .settings-section {
+  background: linear-gradient(135deg, #1f1f1f 0%, #1a1a1a 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .settings-section.danger-zone {
+  background: linear-gradient(135deg, #2a1a1a 0%, #1a1a1a 100%);
+  border-color: rgba(240, 82, 82, 0.3);
+}
+
+body[data-theme="dark"] .reset-btn {
+  background: #1a1a1a;
+  color: var(--red);
+  border-color: var(--red);
+}
+
+body[data-theme="dark"] .reset-btn:hover {
+  background: var(--red);
+  color: white;
+}
+
 /* Main card */
 
 .card {
