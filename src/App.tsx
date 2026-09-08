@@ -1,62 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePomodoro, ACTIVITIES } from './hooks/usePomodoro';
-import TomatoScene from './components/TomatoScene';
-import type { TimerMode } from './hooks/usePomodoro';
-
-// Physical ticking sound effect
-function useTickSound(isRunning: boolean) {
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (isRunning) {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioCtxRef.current;
-
-      const playTick = () => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 800 + Math.random() * 100;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.02, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.05);
-      };
-
-      intervalRef.current = window.setInterval(playTick, 1000);
-      return () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-      };
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-  }, [isRunning]);
-}
-
-// Bell ring sound when timer completes
-function playBellSound() {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  
-  // Play three bell strikes
-  [0, 0.3, 0.6].forEach((delay) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 1200;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + delay + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.4);
-    osc.start(ctx.currentTime + delay);
-    osc.stop(ctx.currentTime + delay + 0.4);
-  });
-}
+import { usePomodoro, type TimerMode } from './hooks/usePomodoro';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -64,474 +7,493 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+// Theme colors per mode
+const themes = {
+  focus: {
+    bg: 'from-rose-50 via-red-50 to-orange-50',
+    accent: '#e11d48',
+    accentSoft: '#fecdd3',
+    ring: 'from-rose-400 to-red-500',
+    text: '#9f1239',
+    surface: 'rgba(255, 255, 255, 0.7)',
+  },
+  shortBreak: {
+    bg: 'from-emerald-50 via-teal-50 to-cyan-50',
+    accent: '#059669',
+    accentSoft: '#a7f3d0',
+    ring: 'from-emerald-400 to-teal-500',
+    text: '#065f46',
+    surface: 'rgba(255, 255, 255, 0.7)',
+  },
+  longBreak: {
+    bg: 'from-blue-50 via-indigo-50 to-violet-50',
+    accent: '#2563eb',
+    accentSoft: '#bfdbfe',
+    ring: 'from-blue-400 to-indigo-500',
+    text: '#1e40af',
+    surface: 'rgba(255, 255, 255, 0.7)',
+  },
+};
+
 export default function App() {
   const pomo = usePomodoro();
-  const [activityInput, setActivityInput] = useState('');
-  const [showActivities, setShowActivities] = useState(false);
-  const [activePanel, setActivePanel] = useState<'none' | 'tasks' | 'stats' | 'device'>('none');
-  const [newTaskName, setNewTaskName] = useState('');
-  const [newTaskEstimate, setNewTaskEstimate] = useState(1);
-  const [isWinding, setIsWinding] = useState(false);
-  const prevTimerState = useRef(pomo.timerState);
+  const [showTasks, setShowTasks] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [taskInput, setTaskInput] = useState('');
+  const theme = themes[pomo.mode];
+  const prevMode = useRef(pomo.mode);
 
   // Update document title
   useEffect(() => {
-    const modeLabel = pomo.mode === 'focus' ? '🍅 Focus' : pomo.mode === 'shortBreak' ? '☕ Break' : '🌊 Long Break';
+    const label = pomo.mode === 'focus' ? '🍅' : pomo.mode === 'shortBreak' ? '☕' : '🌊';
     document.title = pomo.timerState === 'running'
-      ? `${formatTime(pomo.timeLeft)} — ${modeLabel}`
-      : '3D Pomodoro — Focus Timer';
+      ? `${formatTime(pomo.timeLeft)} ${label}`
+      : 'Pomodoro';
   }, [pomo.timeLeft, pomo.timerState, pomo.mode]);
 
-  const modeColor = pomo.mode === 'focus' ? '#ef4444' : pomo.mode === 'shortBreak' ? '#22c55e' : '#3b82f6';
-  const modeLabel = pomo.mode === 'focus' ? 'Focus' : pomo.mode === 'shortBreak' ? 'Short Break' : 'Long Break';
-
-  // Physical ticking sound when running
-  useTickSound(pomo.timerState === 'running');
-
-  // Trigger winding animation when timer starts
+  // Subtle sound on mode change
   useEffect(() => {
-    if (pomo.timerState === 'running' && prevTimerState.current !== 'running') {
-      setIsWinding(true);
-      const timeout = setTimeout(() => setIsWinding(false), 600);
-      // Play bell sound when session completes (transitioning from running to idle)
-    } else if (pomo.timerState === 'idle' && prevTimerState.current === 'running') {
-      playBellSound();
+    if (prevMode.current !== pomo.mode && pomo.timerState === 'idle') {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = pomo.mode === 'focus' ? 440 : pomo.mode === 'shortBreak' ? 523 : 659;
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
     }
-    prevTimerState.current = pomo.timerState;
-  }, [pomo.timerState]);
+    prevMode.current = pomo.mode;
+  }, [pomo.mode, pomo.timerState]);
 
-  const handleStart = () => {
-    // Physical click sound
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 400;
-    osc.type = 'square';
-    gain.gain.setValueAtTime(0.05, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
-    
-    pomo.start();
-  };
+  const progress = pomo.totalTime > 0 ? (pomo.totalTime - pomo.timeLeft) / pomo.totalTime : 0;
+  const degrees = progress * 360;
 
   const handleAddTask = () => {
-    if (newTaskName.trim()) {
-      pomo.addTask(newTaskName.trim(), newTaskEstimate);
-      setNewTaskName('');
-      setNewTaskEstimate(1);
+    if (taskInput.trim()) {
+      pomo.addTask(taskInput.trim(), 1);
+      setTaskInput('');
     }
   };
 
   return (
-    <div className="app-container">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="brand">3D Focus Timer</div>
-
-        <h1>Focus with<br />intention.</h1>
-
-        <p className="subtitle">
-          A visual Pomodoro timer with a 3D tomato that shows your progress.
-        </p>
-
-        {/* Activity input */}
-        <label className="field-label" htmlFor="activity">Current activity</label>
-        <input
-          id="activity"
-          className="activity-input"
-          type="text"
-          placeholder="Example: Study JavaScript"
-          value={activityInput}
-          onChange={e => setActivityInput(e.target.value)}
-        />
-
-        {/* Activity preset selector */}
-        <button
-          className="activity-preset-btn"
-          onClick={() => setShowActivities(!showActivities)}
-        >
-          <span>{pomo.currentActivity.icon} {pomo.currentActivity.name}</span>
-          <span className="chevron">{showActivities ? '▲' : '▼'}</span>
-        </button>
-
-        {showActivities && (
-          <div className="activity-picker">
-            {ACTIVITIES.map(a => (
-              <button
-                key={a.id}
-                className={`activity-option ${pomo.currentActivity.id === a.id ? 'selected' : ''}`}
-                onClick={() => {
-                  pomo.setActivity(a);
-                  setShowActivities(false);
-                }}
-              >
-                <span className="activity-icon">{a.icon}</span>
-                <div className="activity-info">
-                  <div className="activity-name">{a.name}</div>
-                  <div className="activity-desc">{a.description}</div>
-                </div>
-                <div className="activity-time">{a.focusMinutes}/{a.breakMinutes}</div>
-              </button>
-            ))}
+    <div className={`min-h-screen w-full bg-gradient-to-br ${theme.bg} transition-all duration-1000 flex flex-col overflow-hidden`}>
+      {/* Top bar - minimal */}
+      <header className="w-full px-6 md:px-12 pt-6 flex items-center justify-between z-10">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+            style={{ background: theme.accent }}>
+            🍅
           </div>
-        )}
-
-        {/* Mode buttons */}
-        <div className="mode-buttons">
-          <button
-            className={`mode-button ${pomo.mode === 'focus' ? 'active' : ''}`}
-            style={pomo.mode === 'focus' ? { background: modeColor } : {}}
-            onClick={() => pomo.setMode('focus')}
-          >
-            Focus · {pomo.currentActivity.focusMinutes} minutes
-          </button>
-          <button
-            className={`mode-button ${pomo.mode === 'shortBreak' ? 'active' : ''}`}
-            style={pomo.mode === 'shortBreak' ? { background: modeColor } : {}}
-            onClick={() => pomo.setMode('shortBreak')}
-          >
-            Short break · {pomo.currentActivity.breakMinutes} minutes
-          </button>
-          <button
-            className={`mode-button ${pomo.mode === 'longBreak' ? 'active' : ''}`}
-            style={pomo.mode === 'longBreak' ? { background: modeColor } : {}}
-            onClick={() => pomo.setMode('longBreak')}
-          >
-            Long break · {pomo.currentActivity.longBreakMinutes} minutes
-          </button>
+          <span className="font-semibold tracking-tight" style={{ color: theme.text }}>Pomodoro</span>
         </div>
 
-        {/* Timer display */}
-        <div className={`timer ${pomo.timerState === 'running' ? 'running' : ''}`} style={{ color: modeColor }}>
-          {formatTime(pomo.timeLeft)}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowStats(!showStats); setShowTasks(false); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+            style={{ background: theme.surface, backdropFilter: 'blur(10px)' }}
+            title="Statistics"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </button>
+          <button
+            onClick={() => { setShowTasks(!showTasks); setShowStats(false); }}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+            style={{ background: theme.surface, backdropFilter: 'blur(10px)' }}
+            title="Tasks"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Main content - centered */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 relative">
+        {/* Mode selector - pill style */}
+        <div className="flex gap-1 p-1 rounded-full mb-12 md:mb-16"
+          style={{ background: theme.surface, backdropFilter: 'blur(10px)' }}>
+          {([
+            { id: 'focus' as TimerMode, label: 'Focus', time: '25' },
+            { id: 'shortBreak' as TimerMode, label: 'Short Break', time: '5' },
+            { id: 'longBreak' as TimerMode, label: 'Long Break', time: '15' },
+          ]).map(m => (
+            <button
+              key={m.id}
+              onClick={() => pomo.setMode(m.id)}
+              className="px-4 md:px-6 py-2 rounded-full text-sm font-medium transition-all duration-300"
+              style={{
+                background: pomo.mode === m.id ? theme.accent : 'transparent',
+                color: pomo.mode === m.id ? 'white' : theme.text,
+                transform: pomo.mode === m.id ? 'scale(1.02)' : 'scale(1)',
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {/* THE TIMER - Hero element */}
+        <div className="relative mb-12">
+          {/* Outer glow */}
+          <div
+            className="absolute inset-0 rounded-full blur-3xl opacity-30 transition-all duration-1000"
+            style={{
+              background: theme.accent,
+              transform: pomo.timerState === 'running' ? 'scale(1.1)' : 'scale(1)',
+            }}
+          />
+
+          {/* Timer circle */}
+          <div
+            className="relative w-72 h-72 md:w-96 md:h-96 rounded-full flex items-center justify-center transition-all duration-500"
+            style={{
+              background: `conic-gradient(${theme.accent} ${degrees}deg, rgba(255,255,255,0.3) ${degrees}deg)`,
+              boxShadow: `0 20px 60px ${theme.accent}30, inset 0 0 0 2px rgba(255,255,255,0.5)`,
+            }}
+          >
+            {/* Inner circle */}
+            <div
+              className="w-[88%] h-[88%] rounded-full flex flex-col items-center justify-center transition-all duration-500"
+              style={{
+                background: theme.surface,
+                backdropFilter: 'blur(20px)',
+                boxShadow: 'inset 0 2px 20px rgba(255,255,255,0.8), inset 0 -2px 20px rgba(0,0,0,0.03)',
+              }}
+            >
+              {/* Mode label */}
+              <div
+                className="text-xs font-semibold uppercase tracking-widest mb-2 transition-colors duration-500"
+                style={{ color: theme.accent }}
+              >
+                {pomo.mode === 'focus' ? 'Focus Time' : pomo.mode === 'shortBreak' ? 'Short Break' : 'Long Break'}
+              </div>
+
+              {/* Time display */}
+              <div
+                className="font-bold tabular-nums transition-colors duration-500 leading-none"
+                style={{
+                  color: theme.text,
+                  fontSize: 'clamp(3.5rem, 12vw, 6rem)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {formatTime(pomo.timeLeft)}
+              </div>
+
+              {/* Status */}
+              <div
+                className="text-xs mt-3 transition-colors duration-500 opacity-70"
+                style={{ color: theme.text }}
+              >
+                {pomo.timerState === 'running' ? '● Running' : pomo.timerState === 'paused' ? '❚❚ Paused' : 'Ready'}
+              </div>
+            </div>
+          </div>
+
+          {/* Decorative dots around the timer */}
+          {Array.from({ length: 60 }).map((_, i) => {
+            const angle = (i / 60) * Math.PI * 2 - Math.PI / 2;
+            const radius = 52;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            const isMajor = i % 5 === 0;
+            return (
+              <div
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: isMajor ? '4px' : '2px',
+                  height: isMajor ? '4px' : '2px',
+                  background: i / 60 <= progress ? theme.accent : `${theme.text}20`,
+                  left: `calc(50% + ${x}% - ${isMajor ? 2 : 1}px)`,
+                  top: `calc(50% + ${y}% - ${isMajor ? 2 : 1}px)`,
+                  transition: 'background 0.3s',
+                }}
+              />
+            );
+          })}
         </div>
 
         {/* Controls */}
-        <div className="controls">
+        <div className="flex items-center gap-4 mb-8">
+          {/* Reset */}
           <button
-            className="control-button start-button"
-            style={{ background: modeColor, boxShadow: `0 7px 18px ${modeColor}40` }}
-            onClick={handleStart}
+            onClick={pomo.reset}
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+            style={{ background: theme.surface, backdropFilter: 'blur(10px)' }}
+            title="Reset"
           >
-            {pomo.timerState === 'running' ? 'Pause' : pomo.timerState === 'paused' ? 'Resume' : `Start ${modeLabel.toLowerCase()}`}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
           </button>
-          <button className="control-button reset-button" onClick={pomo.reset}>
-            Reset
-          </button>
-          {pomo.timerState !== 'idle' && (
-            <button className="control-button skip-button" onClick={pomo.skip}>
-              Skip
-            </button>
-          )}
-        </div>
 
-        {/* Interruption tracker */}
-        {pomo.timerState === 'running' && pomo.mode === 'focus' && (
-          <button className="interruption-btn" onClick={pomo.logInterruption}>
-            ⚡ Log interruption ({pomo.interruptions})
-          </button>
-        )}
-
-        {/* Stats */}
-        <div className="stats">
-          <div>
-            <span className="stat-number">{pomo.todayStat.sessions}</span>
-            <span className="stat-label">Sessions today</span>
-          </div>
-          <div>
-            <span className="stat-number">{pomo.sessionsCompleted}</span>
-            <span className="stat-label">Total sessions</span>
-          </div>
-          <div>
-            <span className="stat-number">{pomo.currentStreak}🔥</span>
-            <span className="stat-label">Day streak</span>
-          </div>
-        </div>
-
-        {/* Daily goal progress */}
-        <div className="daily-goal">
-          <div className="daily-goal-header">
-            <span>Daily goal</span>
-            <span>{pomo.todayStat.sessions}/{pomo.settings.dailyGoal}</span>
-          </div>
-          <div className="daily-goal-bar">
-            <div
-              className="daily-goal-fill"
-              style={{
-                width: `${Math.min(100, (pomo.todayStat.sessions / pomo.settings.dailyGoal) * 100)}%`,
-                background: modeColor,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Break suggestion */}
-        {pomo.mode !== 'focus' && pomo.timerState !== 'running' && (
-          <div className="break-suggestion">
-            💡 Suggested break: <strong>{pomo.breakActivity}</strong>
-          </div>
-        )}
-
-        {/* Panel tabs */}
-        <div className="panel-tabs">
+          {/* Play/Pause - main button */}
           <button
-            className={`panel-tab ${activePanel === 'tasks' ? 'active' : ''}`}
-            onClick={() => setActivePanel(activePanel === 'tasks' ? 'none' : 'tasks')}
+            onClick={pomo.start}
+            className="w-20 h-20 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg"
+            style={{
+              background: theme.accent,
+              boxShadow: `0 10px 30px ${theme.accent}50`,
+            }}
+            title={pomo.timerState === 'running' ? 'Pause' : 'Start'}
           >
-            📋 Tasks
-          </button>
-          <button
-            className={`panel-tab ${activePanel === 'stats' ? 'active' : ''}`}
-            onClick={() => setActivePanel(activePanel === 'stats' ? 'none' : 'stats')}
-          >
-            📊 Stats
-          </button>
-          <button
-            className={`panel-tab ${activePanel === 'device' ? 'active' : ''}`}
-            onClick={() => setActivePanel(activePanel === 'device' ? 'none' : 'device')}
-          >
-            🔧 Device
-          </button>
-        </div>
-
-        {/* Tasks panel */}
-        {activePanel === 'tasks' && (
-          <div className="panel-content">
-            <div className="task-input-row">
-              <input
-                type="text"
-                placeholder="Add a task..."
-                value={newTaskName}
-                onChange={e => setNewTaskName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddTask()}
-                className="task-input"
-              />
-              <select
-                value={newTaskEstimate}
-                onChange={e => setNewTaskEstimate(Number(e.target.value))}
-                className="task-estimate"
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                  <option key={n} value={n}>{n}🍅</option>
-                ))}
-              </select>
-              <button className="task-add-btn" onClick={handleAddTask}>+</button>
-            </div>
-
-            <div className="task-list">
-              {pomo.tasks.length === 0 && (
-                <div className="empty-state">No tasks yet</div>
-              )}
-              {pomo.tasks.map(task => (
-                <div key={task.id} className={`task-item ${task.done ? 'done' : ''}`}>
-                  <button
-                    className="task-check"
-                    onClick={() => pomo.toggleTask(task.id)}
-                  >
-                    {task.done ? '✓' : ''}
-                  </button>
-                  <div className="task-info">
-                    <div className="task-name">{task.name}</div>
-                    <div className="task-progress">
-                      {task.completedPomodoros}/{task.estimatedPomodoros} 🍅
-                    </div>
-                  </div>
-                  <button
-                    className="task-delete"
-                    onClick={() => pomo.deleteTask(task.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {pomo.tasks.length > 0 && (
-              <div className="tasks-summary">
-                Total: {pomo.tasks.reduce((sum, t) => sum + t.estimatedPomodoros, 0)} 🍅 estimated ·{' '}
-                {pomo.tasks.reduce((sum, t) => sum + t.completedPomodoros, 0)} 🍅 completed
-              </div>
+            {pomo.timerState === 'running' ? (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            ) : (
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                <polygon points="6,3 20,12 6,21" />
+              </svg>
             )}
-          </div>
-        )}
+          </button>
 
-        {/* Stats panel */}
-        {activePanel === 'stats' && (
-          <div className="panel-content">
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-card-value">{pomo.todayStat.focusMinutes}</div>
-                <div className="stat-card-label">Minutes focused</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-value">{pomo.todayStat.interruptions}</div>
-                <div className="stat-card-label">Interruptions</div>
-              </div>
-            </div>
-
-            {/* 7-day chart */}
-            <div className="chart-section">
-              <h3>Last 7 days</h3>
-              <div className="chart">
-                {Array.from({ length: 7 }).map((_, i) => {
-                  const d = new Date();
-                  d.setDate(d.getDate() - (6 - i));
-                  const key = d.toISOString().split('T')[0];
-                  const stat = pomo.dailyStats.find(s => s.date === key);
-                  const sessions = stat?.sessions || 0;
-                  const maxSessions = Math.max(pomo.settings.dailyGoal, ...pomo.dailyStats.map(s => s.sessions), 1);
-                  const height = (sessions / maxSessions) * 100;
-                  return (
-                    <div key={key} className="chart-bar-container">
-                      <div
-                        className="chart-bar"
-                        style={{
-                          height: `${height}%`,
-                          background: sessions >= pomo.settings.dailyGoal ? '#22c55e' : modeColor,
-                        }}
-                      />
-                      <div className="chart-label">
-                        {d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2)}
-                      </div>
-                      <div className="chart-value">{sessions}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent sessions */}
-            <div className="recent-sessions">
-              <h3>Recent sessions</h3>
-              {pomo.sessionHistory.length === 0 && (
-                <div className="empty-state">No sessions yet</div>
-              )}
-              {pomo.sessionHistory.slice(0, 5).map(s => (
-                <div key={s.id} className="session-row">
-                  <span className="session-mode" style={{
-                    color: s.mode === 'focus' ? '#ef4444' : s.mode === 'shortBreak' ? '#22c55e' : '#3b82f6'
-                  }}>
-                    {s.mode === 'focus' ? '🍅' : s.mode === 'shortBreak' ? '☕' : '🌊'}
-                  </span>
-                  <span className="session-activity">{s.activity}</span>
-                  <span className="session-time">
-                    {Math.round(s.duration / 60)} min
-                    {s.interruptions > 0 && <span className="session-interruptions"> · {s.interruptions}⚡</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Device panel */}
-        {activePanel === 'device' && (
-          <div className="panel-content">
-            <div className="device-status">
-              <div className="device-indicator connected">
-                <span className="dot" />
-                <span>ESP32 Simulator — Connected</span>
-              </div>
-              <div className="device-details">
-                <div className="detail-row">
-                  <span>Firmware</span>
-                  <span>v1.2.0</span>
-                </div>
-                <div className="detail-row">
-                  <span>Servo position</span>
-                  <span>{Math.round(pomo.servoAngle)}°</span>
-                </div>
-                <div className="detail-row">
-                  <span>LED state</span>
-                  <span style={{ color: modeColor }}>● {modeLabel}</span>
-                </div>
-                <div className="detail-row">
-                  <span>Battery</span>
-                  <span>87%</span>
-                </div>
-                <div className="detail-row">
-                  <span>Signal</span>
-                  <span>Strong</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="device-commands">
-              <h3>Commands sent</h3>
-              <div className="command-log">
-                <div className="command">
-                  <span className="cmd-time">now</span>
-                  <span className="cmd-text">SYNC_STATE → servo:{Math.round(pomo.servoAngle)}° led:{modeColor}</span>
-                </div>
-                <div className="command">
-                  <span className="cmd-time">-1s</span>
-                  <span className="cmd-text">SET_MODE → {pomo.mode}</span>
-                </div>
-                {pomo.timerState === 'running' && (
-                  <div className="command">
-                    <span className="cmd-time">-2s</span>
-                    <span className="cmd-text">START_TIMER → {Math.round(pomo.totalTime / 60)}min</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="device-info">
-              <h3>About the physical device</h3>
-              <p>
-                This app simulates a physical ESP32-based pomodoro device.
-                In a real implementation, the servo would physically rotate
-                the dial as the timer progresses, and LEDs would indicate
-                the current mode.
-              </p>
-              <div className="hardware-list">
-                <div className="hw-item">🔧 ESP32 microcontroller</div>
-                <div className="hw-item">⚙️ SG90 servo motor</div>
-                <div className="hw-item">💡 RGB LED ring</div>
-                <div className="hw-item">🔔 Buzzer / vibration</div>
-                <div className="hw-item">🔘 Push button</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* 3D Scene */}
-      <section className="scene-container">
-        <div className="scene-title">Interactive 3D Pomodoro</div>
-        <div className={`scene-wrapper ${isWinding ? 'winding' : ''}`}>
-          <TomatoScene
-            mode={pomo.mode}
-            timerState={pomo.timerState}
-            progress={pomo.progress}
-            onClick={handleStart}
-          />
-        </div>
-        <div className="scene-help">
-          {pomo.timerState === 'running' ? '🔊 Tick... tick... tick...' : 'Drag to rotate · Scroll to zoom · Click tomato to start'}
+          {/* Skip */}
+          <button
+            onClick={pomo.skip}
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+            style={{ background: theme.surface, backdropFilter: 'blur(10px)' }}
+            title="Skip"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="5,4 15,12 5,20" fill={theme.text} />
+              <line x1="19" y1="5" x2="19" y2="19" />
+            </svg>
+          </button>
         </div>
 
-        {/* Session dots overlay */}
-        <div className="session-dots-overlay">
-          {Array.from({ length: pomo.settings.longBreakInterval }).map((_, i) => (
-            <div
-              key={i}
-              className="session-dot"
-              style={{
-                background: i < (pomo.sessionsCompleted % pomo.settings.longBreakInterval)
-                  ? modeColor
-                  : 'rgba(255, 255, 255, 0.3)',
-              }}
+        {/* Session progress dots */}
+        <div className="flex items-center gap-2">
+          {Array.from({ length: pomo.settings.longBreakInterval }).map((_, i) => {
+            const completed = i < (pomo.sessionsCompleted % pomo.settings.longBreakInterval);
+            const isCurrent = i === (pomo.sessionsCompleted % pomo.settings.longBreakInterval);
+            return (
+              <div
+                key={i}
+                className="rounded-full transition-all duration-500"
+                style={{
+                  width: isCurrent ? '24px' : '8px',
+                  height: '8px',
+                  background: completed ? theme.accent : isCurrent ? `${theme.accent}60` : `${theme.text}20`,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Quick stats */}
+        <div className="mt-8 flex items-center gap-6 text-sm" style={{ color: theme.text }}>
+          <div className="flex items-center gap-2 opacity-70">
+            <span className="font-semibold">{pomo.todayStat.sessions}</span>
+            <span>sessions today</span>
+          </div>
+          <div className="w-px h-4" style={{ background: `${theme.text}30` }} />
+          <div className="flex items-center gap-2 opacity-70">
+            <span className="font-semibold">{pomo.currentStreak}</span>
+            <span>day streak 🔥</span>
+          </div>
+        </div>
+      </main>
+
+      {/* Tasks panel - slides up from bottom */}
+      {showTasks && (
+        <div
+          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto rounded-t-3xl p-6 shadow-2xl animate-slide-up"
+          style={{
+            background: theme.surface,
+            backdropFilter: 'blur(20px)',
+            maxHeight: '60vh',
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-lg" style={{ color: theme.text }}>Tasks</h3>
+            <button onClick={() => setShowTasks(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${theme.text}10` }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={taskInput}
+              onChange={e => setTaskInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddTask()}
+              placeholder="What are you working on?"
+              className="flex-1 px-4 py-2.5 rounded-full text-sm outline-none"
+              style={{ background: 'rgba(255,255,255,0.8)', color: theme.text }}
             />
-          ))}
-          <span className="session-dots-label">
-            {pomo.sessionsCompleted % pomo.settings.longBreakInterval}/{pomo.settings.longBreakInterval} to long break
-          </span>
+            <button
+              onClick={handleAddTask}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+              style={{ background: theme.accent }}
+            >
+              +
+            </button>
+          </div>
+
+          <div className="space-y-2 overflow-y-auto max-h-80">
+            {pomo.tasks.length === 0 && (
+              <p className="text-center py-8 text-sm opacity-50" style={{ color: theme.text }}>
+                No tasks yet. Add one above.
+              </p>
+            )}
+            {pomo.tasks.map(task => (
+              <div
+                key={task.id}
+                className="flex items-center gap-3 p-3 rounded-2xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.6)' }}
+              >
+                <button
+                  onClick={() => pomo.toggleTask(task.id)}
+                  className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{
+                    borderColor: task.done ? theme.accent : `${theme.text}40`,
+                    background: task.done ? theme.accent : 'transparent',
+                  }}
+                >
+                  {task.done && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </button>
+                <span
+                  className="flex-1 text-sm"
+                  style={{
+                    color: theme.text,
+                    opacity: task.done ? 0.5 : 1,
+                    textDecoration: task.done ? 'line-through' : 'none',
+                  }}
+                >
+                  {task.name}
+                </span>
+                <button
+                  onClick={() => pomo.deleteTask(task.id)}
+                  className="opacity-40 hover:opacity-100 transition-opacity"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
-      </section>
+      )}
+
+      {/* Stats panel */}
+      {showStats && (
+        <div
+          className="fixed bottom-0 left-0 right-0 max-w-md mx-auto rounded-t-3xl p-6 shadow-2xl animate-slide-up"
+          style={{
+            background: theme.surface,
+            backdropFilter: 'blur(20px)',
+            maxHeight: '60vh',
+          }}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-lg" style={{ color: theme.text }}>Statistics</h3>
+            <button onClick={() => setShowStats(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `${theme.text}10` }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)' }}>
+              <div className="text-3xl font-bold" style={{ color: theme.accent }}>{pomo.todayStat.sessions}</div>
+              <div className="text-xs opacity-60 mt-1" style={{ color: theme.text }}>Sessions today</div>
+            </div>
+            <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)' }}>
+              <div className="text-3xl font-bold" style={{ color: theme.accent }}>{pomo.todayStat.focusMinutes}</div>
+              <div className="text-xs opacity-60 mt-1" style={{ color: theme.text }}>Minutes focused</div>
+            </div>
+            <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)' }}>
+              <div className="text-3xl font-bold" style={{ color: theme.accent }}>{pomo.sessionsCompleted}</div>
+              <div className="text-xs opacity-60 mt-1" style={{ color: theme.text }}>Total sessions</div>
+            </div>
+            <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)' }}>
+              <div className="text-3xl font-bold" style={{ color: theme.accent }}>{pomo.currentStreak}</div>
+              <div className="text-xs opacity-60 mt-1" style={{ color: theme.text }}>Day streak 🔥</div>
+            </div>
+          </div>
+
+          {/* 7-day chart */}
+          <div className="mb-4">
+            <div className="text-xs font-semibold uppercase tracking-wider mb-3 opacity-60" style={{ color: theme.text }}>Last 7 days</div>
+            <div className="flex items-end gap-2 h-24">
+              {Array.from({ length: 7 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (6 - i));
+                const key = d.toISOString().split('T')[0];
+                const stat = pomo.dailyStats.find(s => s.date === key);
+                const sessions = stat?.sessions || 0;
+                const maxSessions = Math.max(pomo.settings.dailyGoal, ...pomo.dailyStats.map(s => s.sessions), 1);
+                const height = Math.max(4, (sessions / maxSessions) * 100);
+                return (
+                  <div key={key} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-t-md transition-all"
+                      style={{
+                        height: `${height}%`,
+                        background: sessions >= pomo.settings.dailyGoal ? theme.accent : `${theme.accent}60`,
+                      }}
+                    />
+                    <div className="text-[10px] opacity-50" style={{ color: theme.text }}>
+                      {d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Goal progress */}
+          <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.6)' }}>
+            <div className="flex justify-between text-xs mb-2" style={{ color: theme.text }}>
+              <span className="opacity-60">Daily goal</span>
+              <span className="font-semibold">{pomo.todayStat.sessions} / {pomo.settings.dailyGoal}</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: `${theme.text}15` }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min(100, (pomo.todayStat.sessions / pomo.settings.dailyGoal) * 100)}%`,
+                  background: theme.accent,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop for panels */}
+      {(showTasks || showStats) && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-0 animate-fade-in"
+          onClick={() => { setShowTasks(false); setShowStats(false); }}
+        />
+      )}
     </div>
   );
 }
