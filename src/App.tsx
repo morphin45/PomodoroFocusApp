@@ -30,6 +30,13 @@ import TierComparison from './components/TierComparison';
 import UsageLimits from './components/UsageLimits';
 import TierBadge from './components/TierBadge';
 import FeatureGate from './components/FeatureGate';
+import SoundMixer from './components/SoundMixer';
+import FocusReport from './components/FocusReport';
+import TaskTemplates from './components/TaskTemplates';
+import AIRecommendations from './components/AIRecommendations';
+import SmartScheduler from './components/SmartScheduler';
+import TeamDashboard from './components/TeamDashboard';
+import SharedProjects from './components/SharedProjects';
 import { type Tier, type BillingCycle, TIER_CONFIGS, type UsageStats } from './utils/tierSystem';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
@@ -313,7 +320,7 @@ export default function App() {
     setShowTierModal(true);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history' | 'timeline' | 'notifications' | 'import' | 'dashboard' | 'accessibility'>('timer');
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics' | 'sounds' | 'themes' | 'custom-techniques' | 'break-activities' | 'health' | 'focus-mode' | 'streak' | 'categories' | 'notes' | 'goals' | 'history' | 'timeline' | 'notifications' | 'import' | 'dashboard' | 'accessibility' | 'sound-mixer' | 'focus-report' | 'task-templates' | 'ai-recommendations' | 'smart-scheduler' | 'team-dashboard' | 'shared-projects'>('timer');
   const currentTechnique = TECHNIQUES[state.technique];
   
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
@@ -1218,6 +1225,125 @@ export default function App() {
             </svg>
             Access
           </button>
+          <button 
+            className={`nav-tab ${activeTab === 'sound-mixer' ? 'active' : ''} ${currentTier === 'free' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier !== 'free') {
+                setActiveTab('sound-mixer');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            Mixer {currentTier === 'free' && <span className="pro-badge-small">PRO</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'focus-report' ? 'active' : ''} ${currentTier === 'free' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier !== 'free') {
+                setActiveTab('focus-report');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Report {currentTier === 'free' && <span className="pro-badge-small">PRO</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'task-templates' ? 'active' : ''} ${currentTier === 'free' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier !== 'free') {
+                setActiveTab('task-templates');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="9" x2="15" y2="9" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+            Templates {currentTier === 'free' && <span className="pro-badge-small">PRO</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'ai-recommendations' ? 'active' : ''} ${currentTier !== 'premium' && currentTier !== 'team' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier === 'premium' || currentTier === 'team') {
+                setActiveTab('ai-recommendations');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            AI {currentTier !== 'premium' && currentTier !== 'team' && <span className="pro-badge-small">PREMIUM</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'smart-scheduler' ? 'active' : ''} ${currentTier !== 'premium' && currentTier !== 'team' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier === 'premium' || currentTier === 'team') {
+                setActiveTab('smart-scheduler');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Schedule {currentTier !== 'premium' && currentTier !== 'team' && <span className="pro-badge-small">PREMIUM</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'team-dashboard' ? 'active' : ''} ${currentTier !== 'team' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier === 'team') {
+                setActiveTab('team-dashboard');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            Team {currentTier !== 'team' && <span className="pro-badge-small">TEAM</span>}
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'shared-projects' ? 'active' : ''} ${currentTier !== 'team' ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (currentTier === 'team') {
+                setActiveTab('shared-projects');
+              } else {
+                setShowTierModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            Projects {currentTier !== 'team' && <span className="pro-badge-small">TEAM</span>}
+          </button>
         </div>
 
         {/* Timer view (default) */}
@@ -1689,6 +1815,98 @@ export default function App() {
             <Accessibility
               settings={accessibilitySettings}
               onUpdateSettings={setAccessibilitySettings}
+            />
+          </div>
+        )}
+
+        {/* Sound Mixer view (Pro) */}
+        {activeTab === 'sound-mixer' && (
+          <div className="tab-content">
+            <SoundMixer
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Focus Report view (Pro) */}
+        {activeTab === 'focus-report' && (
+          <div className="tab-content">
+            <FocusReport
+              sessions={state.sessions}
+              dailyStats={state.dailyStats}
+              tasks={state.tasks}
+              currentStreak={state.currentStreak}
+              longestStreak={state.longestStreak}
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Task Templates view (Pro) */}
+        {activeTab === 'task-templates' && (
+          <div className="tab-content">
+            <TaskTemplates
+              isPremium={currentTier !== 'free'}
+              onUpgrade={() => setShowTierModal(true)}
+              onApplyTemplate={(template) => {
+                const newTask = {
+                  id: Date.now().toString(),
+                  name: template.name,
+                  estimatedPomodoros: template.estimatedPomodoros,
+                  completedPomodoros: 0,
+                  done: false,
+                  category: template.category,
+                };
+                setState(prev => ({ ...prev, tasks: [...prev.tasks, newTask] }));
+              }}
+            />
+          </div>
+        )}
+
+        {/* AI Recommendations view (Premium) */}
+        {activeTab === 'ai-recommendations' && (
+          <div className="tab-content">
+            <AIRecommendations
+              sessions={state.sessions}
+              dailyStats={state.dailyStats}
+              currentStreak={state.currentStreak}
+              tasks={state.tasks}
+              isPremium={currentTier === 'premium' || currentTier === 'team'}
+              onUpgrade={() => setShowTierModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Smart Scheduler view (Premium) */}
+        {activeTab === 'smart-scheduler' && (
+          <div className="tab-content">
+            <SmartScheduler
+              sessions={state.sessions}
+              tasks={state.tasks}
+              isPremium={currentTier === 'premium' || currentTier === 'team'}
+              onUpgrade={() => setShowTierModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Team Dashboard view (Team) */}
+        {activeTab === 'team-dashboard' && (
+          <div className="tab-content">
+            <TeamDashboard
+              isTeam={currentTier === 'team'}
+              onUpgrade={() => setShowTierModal(true)}
+            />
+          </div>
+        )}
+
+        {/* Shared Projects view (Team) */}
+        {activeTab === 'shared-projects' && (
+          <div className="tab-content">
+            <SharedProjects
+              isTeam={currentTier === 'team'}
+              onUpgrade={() => setShowTierModal(true)}
             />
           </div>
         )}
