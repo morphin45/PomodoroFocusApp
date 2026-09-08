@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import AchievementSystem from './components/AchievementSystem';
+import AdvancedAnalytics from './components/AdvancedAnalytics';
+import PremiumModal from './components/PremiumModal';
+import FocusScore from './components/FocusScore';
 
 type Mode = 'work' | 'shortBreak' | 'longBreak';
 type Technique = 'classic' | 'extended' | 'short' | 'deep';
@@ -165,16 +169,56 @@ export default function App() {
     setIsDarkMode(!isDarkMode);
   };
 
-  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar'>('timer');
+  // Premium state
+  const [isPremium, setIsPremium] = useState(() => {
+    const saved = localStorage.getItem('pomodoroPremium');
+    return saved === 'true';
+  });
+
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+  const handleUpgrade = () => {
+    setIsPremium(true);
+    localStorage.setItem('pomodoroPremium', 'true');
+    setShowPremiumModal(false);
+  };
+
+  const [activeTab, setActiveTab] = useState<'timer' | 'tasks' | 'stats' | 'calendar' | 'achievements' | 'analytics'>('timer');
 
   const currentTechnique = TECHNIQUES[state.technique];
-
+  
   const getDuration = (mode: Mode, technique: Technique = state.technique): number => {
     return TECHNIQUES[technique][mode];
   };
 
-  const intervalRef = useRef<number | null>(null);
+  // Calculate focus score
+  const calculateFocusScore = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayStats = state.dailyStats.find(s => s.date === today);
+    const sessionsToday = todayStats?.sessions || 0;
+    const interruptionsToday = todayStats?.interruptions || 0;
+    
+    // Base score from sessions (max 40 points)
+    const sessionScore = Math.min(40, sessionsToday * 10);
+    
+    // Streak bonus (max 30 points)
+    const streakScore = Math.min(30, state.currentStreak * 3);
+    
+    // Interruption penalty (max -20 points)
+    const interruptionPenalty = Math.min(20, interruptionsToday * 2);
+    
+    // Consistency bonus (max 10 points)
+    const consistencyScore = state.longestStreak >= 7 ? 10 : state.longestStreak >= 3 ? 5 : 0;
+    
+    return Math.max(0, Math.min(100, sessionScore + streakScore - interruptionPenalty + consistencyScore));
+  };
 
+  const focusScore = calculateFocusScore();
+
+  // Calculate tasks completed
+  const tasksCompleted = state.tasks.filter(t => t.done).length;
+
+  const intervalRef = useRef<number | null>(null);
   // Save state to localStorage
   useEffect(() => {
     localStorage.setItem('pomodoroState', JSON.stringify(state));
@@ -740,6 +784,9 @@ export default function App() {
           </div>
         </div>
 
+        {/* Focus Score Widget */}
+        <FocusScore score={focusScore} isPremium={isPremium} />
+
         <div className="guide">
           <h2>How to use Pomodoro</h2>
           <ol>
@@ -798,6 +845,33 @@ export default function App() {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             Calendar
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'achievements' ? 'active' : ''}`}
+            onClick={() => setActiveTab('achievements')}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="8" r="7" />
+              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+            </svg>
+            Achievements
+          </button>
+          <button 
+            className={`nav-tab ${activeTab === 'analytics' ? 'active' : ''} ${!isPremium ? 'premium-tab' : ''}`}
+            onClick={() => {
+              if (isPremium) {
+                setActiveTab('analytics');
+              } else {
+                setShowPremiumModal(true);
+              }
+            }}
+          >
+            <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            Analytics {!isPremium && <span className="pro-badge-small">PRO</span>}
           </button>
         </div>
 
@@ -1050,7 +1124,39 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* Achievements view */}
+        {activeTab === 'achievements' && (
+          <div className="tab-content">
+            <AchievementSystem
+              sessions={state.completedSessions}
+              currentStreak={state.currentStreak}
+              focusMinutes={state.dailyStats.reduce((sum, stat) => sum + stat.focusMinutes, 0)}
+              tasksCompleted={tasksCompleted}
+              isPremium={isPremium}
+            />
+          </div>
+        )}
+
+        {/* Analytics view */}
+        {activeTab === 'analytics' && (
+          <div className="tab-content">
+            <AdvancedAnalytics
+              sessions={state.sessions}
+              dailyStats={state.dailyStats}
+              isPremium={isPremium}
+              onUpgrade={() => setShowPremiumModal(true)}
+            />
+          </div>
+        )}
       </section>
+
+      {/* Premium Modal */}
+      <PremiumModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        onUpgrade={handleUpgrade}
+      />
 
       <div className="footer">
         Focus for {Math.round(currentTechnique.work / 60)} minutes. Rest. Repeat.
