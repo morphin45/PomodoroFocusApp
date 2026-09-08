@@ -1,7 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePomodoro, ACTIVITIES } from './hooks/usePomodoro';
 import TomatoScene from './components/TomatoScene';
 import type { TimerMode } from './hooks/usePomodoro';
+
+// Physical ticking sound effect
+function useTickSound(isRunning: boolean) {
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isRunning) {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+
+      const playTick = () => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 800 + Math.random() * 100;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.02, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+      };
+
+      intervalRef.current = window.setInterval(playTick, 1000);
+      return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      };
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+  }, [isRunning]);
+}
+
+// Bell ring sound when timer completes
+function playBellSound() {
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  
+  // Play three bell strikes
+  [0, 0.3, 0.6].forEach((delay) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + delay + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.4);
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + 0.4);
+  });
+}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -16,6 +71,8 @@ export default function App() {
   const [activePanel, setActivePanel] = useState<'none' | 'tasks' | 'stats' | 'device'>('none');
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskEstimate, setNewTaskEstimate] = useState(1);
+  const [isWinding, setIsWinding] = useState(false);
+  const prevTimerState = useRef(pomo.timerState);
 
   // Update document title
   useEffect(() => {
@@ -28,7 +85,35 @@ export default function App() {
   const modeColor = pomo.mode === 'focus' ? '#ef4444' : pomo.mode === 'shortBreak' ? '#22c55e' : '#3b82f6';
   const modeLabel = pomo.mode === 'focus' ? 'Focus' : pomo.mode === 'shortBreak' ? 'Short Break' : 'Long Break';
 
+  // Physical ticking sound when running
+  useTickSound(pomo.timerState === 'running');
+
+  // Trigger winding animation when timer starts
+  useEffect(() => {
+    if (pomo.timerState === 'running' && prevTimerState.current !== 'running') {
+      setIsWinding(true);
+      const timeout = setTimeout(() => setIsWinding(false), 600);
+      // Play bell sound when session completes (transitioning from running to idle)
+    } else if (pomo.timerState === 'idle' && prevTimerState.current === 'running') {
+      playBellSound();
+    }
+    prevTimerState.current = pomo.timerState;
+  }, [pomo.timerState]);
+
   const handleStart = () => {
+    // Physical click sound
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 400;
+    osc.type = 'square';
+    gain.gain.setValueAtTime(0.05, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+    
     pomo.start();
   };
 
@@ -120,7 +205,7 @@ export default function App() {
         </div>
 
         {/* Timer display */}
-        <div className="timer" style={{ color: modeColor }}>
+        <div className={`timer ${pomo.timerState === 'running' ? 'running' : ''}`} style={{ color: modeColor }}>
           {formatTime(pomo.timeLeft)}
         </div>
 
@@ -417,7 +502,7 @@ export default function App() {
       {/* 3D Scene */}
       <section className="scene-container">
         <div className="scene-title">Interactive 3D Pomodoro</div>
-        <div className="scene-wrapper">
+        <div className={`scene-wrapper ${isWinding ? 'winding' : ''}`}>
           <TomatoScene
             mode={pomo.mode}
             timerState={pomo.timerState}
@@ -425,7 +510,9 @@ export default function App() {
             onClick={handleStart}
           />
         </div>
-        <div className="scene-help">Drag to rotate · Scroll to zoom · Click tomato to start</div>
+        <div className="scene-help">
+          {pomo.timerState === 'running' ? '🔊 Tick... tick... tick...' : 'Drag to rotate · Scroll to zoom · Click tomato to start'}
+        </div>
 
         {/* Session dots overlay */}
         <div className="session-dots-overlay">
